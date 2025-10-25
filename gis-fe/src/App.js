@@ -1,11 +1,10 @@
 import React from 'react';
-import VWorldMap from './components/VWorldMap';
+import KakaoMap from './components/KakaoMap';
 
 function App() {
   return (
     <div>
-      <h2>🌐 VWorld + PostGIS 토지 조회 시스템</h2>
-      <VWorldMap />
+      <KakaoMap />
     </div>
   );
 }
