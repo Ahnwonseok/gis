@@ -22,6 +22,42 @@ const ControlPanel = styled.div`
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 `;
 
+const ZoomControl = styled.div`
+  position: absolute;
+  top: 70px;
+  right: 10px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background-color: white;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+`;
+
+const ZoomButton = styled.button`
+  width: 40px;
+  height: 40px;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #e9ecef;
+  }
+
+  &:active {
+    background-color: #dee2e6;
+  }
+`;
+
 const MapTypeButton = styled.button`
   padding: 8px 12px;
   background-color: ${props => props.active ? '#007bff' : '#f8f9fa'};
@@ -44,8 +80,9 @@ const MapDiv = styled.div`
 `;
 
 const KakaoMap = () => {
+  // 지도 타입 상태 관리 (일반지도, 항공지도, 하이브리드)
   const [mapType, setMapType] = useState('ROADMAP'); // 기본값: 일반지도
-  const mapRef = useRef(null);
+  const mapRef = useRef(null); // 지도 인스턴스 참조
 
   // 저장된 지도 상태 불러오기
   const getSavedMapState = () => {
@@ -122,10 +159,6 @@ const KakaoMap = () => {
         // 지도를 표시할 div와 지도 옵션으로 지도를 생성합니다
         mapRef.current = new window.kakao.maps.Map(mapContainer, mapOption);
         
-        // 줌 컨트롤 생성 및 추가 (우측 하단으로 이동)
-        const zoomControl = new window.kakao.maps.ZoomControl();
-        mapRef.current.addControl(zoomControl, window.kakao.maps.ControlPosition.BOTTOMRIGHT);
-        
         // 저장된 지도 타입이 있으면 적용
         if (savedState && savedState.type) {
           mapRef.current.setMapTypeId(window.kakao.maps.MapTypeId[savedState.type]);
@@ -158,16 +191,76 @@ const KakaoMap = () => {
     initMap();
   }, [saveMapState]);
 
-  // 지도 타입 변경 함수
-  const changeMapType = (type) => {
+  // 지도 타입 변경 함수 (중심좌표 유지, 같은 타입 클릭 방지)
+  const changeMapType = (maptype) => {
     if (mapRef.current) {
-      mapRef.current.setMapTypeId(window.kakao.maps.MapTypeId[type]);
-      setMapType(type);
+      // 현재 지도 타입 확인
+      const currentMapTypeId = mapRef.current.getMapTypeId();
+      const currentMapTypeString = getMapTypeString(currentMapTypeId);
       
-      // 지도 타입 변경 시에도 상태 저장
-      const center = mapRef.current.getCenter();
-      const level = mapRef.current.getLevel();
-      saveMapState(center, level, type);
+      // 요청한 타입과 현재 타입이 같으면 아무것도 하지 않음
+      const requestedType = maptype === 'roadmap' ? 'ROADMAP' : 
+                           maptype === 'skyview' ? 'SKYVIEW' : 'HYBRID';
+      
+      if (currentMapTypeString === requestedType) {
+        console.log('같은 지도 타입입니다. 변경하지 않습니다.');
+        return;
+      }
+      
+      // 현재 중심좌표와 줌 레벨 저장
+      const currentCenter = mapRef.current.getCenter();
+      const currentLevel = mapRef.current.getLevel();
+      
+      // 지도 타입 변경
+      if (maptype === 'roadmap') {
+        mapRef.current.setMapTypeId(window.kakao.maps.MapTypeId.ROADMAP);
+        setMapType('ROADMAP');
+      } else if (maptype === 'skyview') {
+        mapRef.current.setMapTypeId(window.kakao.maps.MapTypeId.SKYVIEW);
+        setMapType('SKYVIEW');
+      } else {
+        mapRef.current.setMapTypeId(window.kakao.maps.MapTypeId.HYBRID);
+        setMapType('HYBRID');
+      }
+      
+      // 중심좌표와 줌 레벨 유지
+      mapRef.current.setCenter(currentCenter);
+      mapRef.current.setLevel(currentLevel);
+      
+      // 상태 저장
+      const mapTypeString = maptype === 'roadmap' ? 'ROADMAP' : 
+                           maptype === 'skyview' ? 'SKYVIEW' : 'HYBRID';
+      saveMapState(currentCenter, currentLevel, mapTypeString);
+    }
+  };
+
+  // 지도 확대 함수 (지도 타입 유지)
+  const zoomIn = () => {
+    if (mapRef.current) {
+      // 현재 지도 타입 저장
+      const currentMapTypeId = mapRef.current.getMapTypeId();
+      
+      // 줌 레벨 변경
+      const newLevel = mapRef.current.getLevel() - 1;
+      mapRef.current.setLevel(newLevel);
+      
+      // 즉시 지도 타입 복원
+      mapRef.current.setMapTypeId(currentMapTypeId);
+    }
+  };
+
+  // 지도 축소 함수 (지도 타입 유지)
+  const zoomOut = () => {
+    if (mapRef.current) {
+      // 현재 지도 타입 저장
+      const currentMapTypeId = mapRef.current.getMapTypeId();
+      
+      // 줌 레벨 변경
+      const newLevel = mapRef.current.getLevel() + 1;
+      mapRef.current.setLevel(newLevel);
+      
+      // 즉시 지도 타입 복원
+      mapRef.current.setMapTypeId(currentMapTypeId);
     }
   };
 
@@ -176,23 +269,28 @@ const KakaoMap = () => {
       <ControlPanel>
         <MapTypeButton
           active={mapType === 'ROADMAP'}
-          onClick={() => changeMapType('ROADMAP')}
+          onClick={() => changeMapType('roadmap')}
         >
           일반지도
         </MapTypeButton>
         <MapTypeButton
-          active={mapType === 'SKYVIEW'}
-          onClick={() => changeMapType('SKYVIEW')}
-        >
-          항공지도
-        </MapTypeButton>
-        <MapTypeButton
           active={mapType === 'HYBRID'}
-          onClick={() => changeMapType('HYBRID')}
+          onClick={() => changeMapType('hybrid')}
         >
           하이브리드
         </MapTypeButton>
+        <MapTypeButton
+          active={mapType === 'SKYVIEW'}
+          onClick={() => changeMapType('skyview')}
+        >
+          항공지도
+        </MapTypeButton>
       </ControlPanel>
+      
+      <ZoomControl>
+        <ZoomButton onClick={zoomIn}>+</ZoomButton>
+        <ZoomButton onClick={zoomOut}>-</ZoomButton>
+      </ZoomControl>
       
       <MapDiv id="kakao-map" />
     </MapContainer>
