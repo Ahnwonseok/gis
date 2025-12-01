@@ -3,6 +3,9 @@ import styled from 'styled-components';
 
 // 전역 변수로 중복 초기화 방지
 let mapInitialized = false;
+let placesService = null; // 장소 검색 객체
+let markers = []; // 마커 배열
+let infowindow = null; // 인포윈도우
 
 // Styled Components
 const MapContainer = styled.div`
@@ -71,6 +74,26 @@ const MapTypeButton = styled.button`
 
   &:hover {
     background-color: ${props => props.active ? '#0056b3' : '#e9ecef'};
+  }
+`;
+
+const SearchButton = styled.button`
+  padding: 8px 12px;
+  background-color: #28a745;
+  color: white;
+  border: 1px solid #28a745;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #218838;
+  }
+
+  &:active {
+    background-color: #1e7e34;
   }
 `;
 
@@ -163,6 +186,12 @@ const KakaoMap = () => {
         if (savedState && savedState.type) {
           mapRef.current.setMapTypeId(window.kakao.maps.MapTypeId[savedState.type]);
         }
+        
+        // 장소 검색 객체 생성
+        placesService = new window.kakao.maps.services.Places(mapRef.current);
+        
+        // 인포윈도우 생성
+        infowindow = new window.kakao.maps.InfoWindow({ zIndex: 1 });
         
         // 지도 이동/줌 변경 이벤트 리스너 추가
         window.kakao.maps.event.addListener(mapRef.current, 'center_changed', () => {
@@ -264,9 +293,73 @@ const KakaoMap = () => {
     }
   };
 
+  // 기존 마커 제거 함수
+  const removeMarkers = () => {
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
+  };
+
+  // 지도에 마커를 표시하는 함수
+  const displayMarker = (place) => {
+    if (!mapRef.current) return;
+
+    // 마커를 생성하고 지도에 표시합니다
+    const marker = new window.kakao.maps.Marker({
+      map: mapRef.current,
+      position: new window.kakao.maps.LatLng(place.y, place.x)
+    });
+
+    // 마커 배열에 추가
+    markers.push(marker);
+
+    // 마커에 클릭이벤트를 등록합니다
+    window.kakao.maps.event.addListener(marker, 'click', function() {
+      // 마커를 클릭하면 장소명이 인포윈도우에 표출됩니다
+      if (infowindow) {
+        infowindow.setContent('<div style="padding:5px;font-size:12px;">' + place.place_name + '</div>');
+        infowindow.open(mapRef.current, marker);
+      }
+    });
+  };
+
+  // 카테고리 검색 완료 시 호출되는 콜백함수
+  const placesSearchCB = (data, status) => {
+    if (status === window.kakao.maps.services.Status.OK) {
+      // 기존 마커 제거
+      removeMarkers();
+      
+      // 검색 결과를 마커로 표시
+      for (let i = 0; i < data.length; i++) {
+        displayMarker(data[i]);
+      }
+    } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
+      alert('검색 결과가 존재하지 않습니다.');
+      removeMarkers();
+    } else if (status === window.kakao.maps.services.Status.ERROR) {
+      alert('검색 결과 중 오류가 발생했습니다.');
+      removeMarkers();
+    }
+  };
+
+  // 은행 검색 함수
+  const searchBanks = () => {
+    if (!placesService || !mapRef.current) {
+      alert('지도가 아직 로드되지 않았습니다.');
+      return;
+    }
+
+    // 카테고리로 은행을 검색합니다 (BK9: 은행)
+    placesService.categorySearch('BK9', placesSearchCB, {
+      useMapBounds: true // 현재 지도 영역 내에서 검색
+    });
+  };
+
   return (
     <MapContainer>
       <ControlPanel>
+        <SearchButton onClick={searchBanks}>
+          은행 검색
+        </SearchButton>
         <MapTypeButton
           active={mapType === 'ROADMAP'}
           onClick={() => changeMapType('roadmap')}
