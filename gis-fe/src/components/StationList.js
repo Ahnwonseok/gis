@@ -380,6 +380,12 @@ const StationList = ({ onBack, onStationSelect }) => {
         >
           100m
         </RadiusButton>
+        <RadiusButton
+          selected={radius === 500}
+          onClick={() => setRadius(500)}
+        >
+          500m
+        </RadiusButton>
       </RadiusContainer>
 
       <FindButton 

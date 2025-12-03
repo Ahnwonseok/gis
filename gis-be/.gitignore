@@ -35,3 +35,15 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### SSL Certificates ###
+*.crt
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+fullchain.crt
+certificate.crt
+ca_bundle.crt
+private.key
