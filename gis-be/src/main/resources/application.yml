@@ -1,3 +1,14 @@
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    # certificate.crt와 ca_bundle.crt를 합친 fullchain.crt 사용
+    certificate: classpath:fullchain.crt
+    certificate-private-key: classpath:private.key
+  # HTTP를 HTTPS로 리다이렉트하기 위한 설정
+  http:
+    port: 8080
+
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
