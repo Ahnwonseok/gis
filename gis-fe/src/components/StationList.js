@@ -47,51 +47,6 @@ const BackButton = styled.button`
   }
 `;
 
-const RadiusContainer = styled.div`
-  width: 100%;
-  max-width: 500px;
-  margin: 0 auto 20px;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-`;
-
-const RadiusButton = styled.button`
-  flex: 1;
-  min-height: 80px;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: white;
-  background: ${props => props.selected ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.2)'};
-  border: 3px solid ${props => props.selected ? '#ffd700' : 'white'};
-  border-radius: 15px;
-  padding: 15px 10px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  &:focus {
-    outline: 4px solid #ffd700;
-    outline-offset: 4px;
-  }
-
-  @media (max-width: 768px) {
-    min-height: 70px;
-    font-size: 1.3rem;
-    padding: 12px 8px;
-  }
-`;
-
 const FindButton = styled.button`
   width: 100%;
   max-width: 500px;
@@ -160,7 +115,7 @@ const StationListContainer = styled.div`
 
 const StationButton = styled.button`
   width: 100%;
-  min-height: 80px;
+  min-height: 100px;
   font-size: 1.5rem;
   font-weight: bold;
   color: white;
@@ -173,6 +128,9 @@ const StationButton = styled.button`
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 
   &:hover {
     background: rgba(255, 255, 255, 0.3);
@@ -191,9 +149,30 @@ const StationButton = styled.button`
   }
 
   @media (max-width: 768px) {
-    min-height: 70px;
+    min-height: 90px;
     font-size: 1.3rem;
     padding: 15px;
+  }
+`;
+
+const StationName = styled.div`
+  font-size: 1.5rem;
+  font-weight: bold;
+  line-height: 1.4;
+  
+  @media (max-width: 768px) {
+    font-size: 1.3rem;
+  }
+`;
+
+const StationDirection = styled.div`
+  font-size: 1.2rem;
+  font-weight: normal;
+  opacity: 0.9;
+  line-height: 1.4;
+  
+  @media (max-width: 768px) {
+    font-size: 1.1rem;
   }
 `;
 
@@ -202,7 +181,7 @@ const StationList = ({ onBack, onStationSelect }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [locationError, setLocationError] = useState(null);
-  const [radius, setRadius] = useState(50); // 기본값 50m
+  const radius = 500; // 기본값 100m로 고정
 
   // 현재 위치 가져오기
   const getCurrentLocation = () => {
@@ -304,7 +283,7 @@ const StationList = ({ onBack, onStationSelect }) => {
         if (data.result.lane.length > 0) {
           setStations(data.result.lane);
         } else {
-          setError('정류장 정보를 찾을 수 없습니다.');
+          setError('100m 이내에 정류장 정보를 찾을 수 없습니다.');
         }
       } else {
         console.error('예상하지 못한 응답 구조:', data);
@@ -343,15 +322,6 @@ const StationList = ({ onBack, onStationSelect }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 빈 배열로 마운트 시 한 번만 실행
 
-  // 반경 변경 시 자동 재검색
-  useEffect(() => {
-    if (stations.length > 0 || error || locationError) {
-      // 이미 검색을 한 번 이상 시도한 경우에만 재검색
-      fetchStations();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [radius]);
-
   return (
     <Container>
       <Header>
@@ -360,33 +330,6 @@ const StationList = ({ onBack, onStationSelect }) => {
           ← 메인
         </BackButton>
       </Header>
-
-      <RadiusContainer>
-        <RadiusButton
-          selected={radius === 20}
-          onClick={() => setRadius(20)}
-        >
-          20m
-        </RadiusButton>
-        <RadiusButton
-          selected={radius === 50}
-          onClick={() => setRadius(50)}
-        >
-          50m
-        </RadiusButton>
-        <RadiusButton
-          selected={radius === 100}
-          onClick={() => setRadius(100)}
-        >
-          100m
-        </RadiusButton>
-        <RadiusButton
-          selected={radius === 500}
-          onClick={() => setRadius(500)}
-        >
-          500m
-        </RadiusButton>
-      </RadiusContainer>
 
       <FindButton 
         onClick={fetchStations} 
@@ -419,19 +362,19 @@ const StationList = ({ onBack, onStationSelect }) => {
 
       {!loading && stations.length > 0 && (
         <StationListContainer>
-          {stations.map((station, index) => {
+          {stations.slice(0, 3).map((station, index) => {
             const stationName = station.stationName || station.name || '정류장명 없음';
             const direction = station.direction || '';
-            const displayText = direction 
-              ? `${stationName} - ${direction}`
-              : stationName;
             
             return (
               <StationButton
                 key={index}
                 onClick={() => handleStationClick(station)}
               >
-                {displayText}
+                <StationName>{stationName}</StationName>
+                {direction && (
+                  <StationDirection>→ {direction} 방면</StationDirection>
+                )}
               </StationButton>
             );
           })}
@@ -448,5 +391,3 @@ const StationList = ({ onBack, onStationSelect }) => {
 };
 
 export default StationList;
-
-

@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import MainMenu from './components/MainMenu';
 import KakaoMap from './components/KakaoMap';
 import StationList from './components/StationList';
+import StationSelect from './components/StationSelect';
+import BusSelect from './components/BusSelect';
 
 function App() {
-  const [currentView, setCurrentView] = useState('main'); // 'main', 'stations', 'map'
+  const [currentView, setCurrentView] = useState('main'); // 'main', 'stations', 'stationSelect', 'busSelect', 'map'
+  const [selectedStation, setSelectedStation] = useState(null);
 
   const handleMenuSelect = (menu) => {
     switch(menu) {
@@ -26,12 +29,36 @@ function App() {
 
   const handleBackToMain = () => {
     setCurrentView('main');
+    setSelectedStation(null);
   };
 
   const handleStationSelect = (station) => {
-    // 정류장 선택 시 처리 (추후 구현)
-    console.log('Selected station:', station);
-    // 예: 정류장 상세 화면으로 이동 또는 버스 검색 화면으로 이동
+    setSelectedStation(station);
+    setCurrentView('stationSelect');
+  };
+
+  const handleBackToStations = () => {
+    setCurrentView('stations');
+  };
+
+  const handleSearchSelect = (searchType) => {
+    // searchType: 'bus' 또는 'destination'
+    if (searchType === 'bus') {
+      setCurrentView('busSelect');
+    } else if (searchType === 'destination') {
+      // 추후 구현: 도착지 검색 화면으로 이동
+      console.log('도착지 검색 - 추후 구현');
+    }
+  };
+
+  const handleBackToStationSelect = () => {
+    setCurrentView('stationSelect');
+  };
+
+  const handleBusSelect = (bus, station) => {
+    // 버스 선택 시 처리 (추후 구현)
+    console.log('Selected bus:', bus, 'for station:', station);
+    // 예: 도착 알림 설정 화면으로 이동
   };
 
   return (
@@ -43,6 +70,20 @@ function App() {
         <StationList 
           onBack={handleBackToMain}
           onStationSelect={handleStationSelect}
+        />
+      )}
+      {currentView === 'stationSelect' && selectedStation && (
+        <StationSelect
+          station={selectedStation}
+          onBack={handleBackToStations}
+          onSelect={handleSearchSelect}
+        />
+      )}
+      {currentView === 'busSelect' && selectedStation && (
+        <BusSelect
+          station={selectedStation}
+          onBack={handleBackToStationSelect}
+          onBusSelect={handleBusSelect}
         />
       )}
       {currentView === 'map' && (
