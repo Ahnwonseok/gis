@@ -82,6 +82,9 @@ public class BusController {
                     ArrayNode laneArray = (ArrayNode) resultNode.get("lane");
                     ArrayNode filteredLaneArray = objectMapper.createArrayNode();
                     
+                    // 중복 API 호출 방지를 위한 Map (busID -> laneDetail)
+                    Map<Integer, JsonNode> busLaneDetailCache = new HashMap<>();
+                    
                     // stationClass가 1인 것만 필터링하고 direction 추가
                     for (JsonNode lane : laneArray) {
                         if (lane.has("stationClass") && lane.get("stationClass").asInt() == 1) {
@@ -93,6 +96,38 @@ public class BusController {
                                 if (direction != null) {
                                     laneObject.put("direction", direction);
                                 }
+                            }
+                            
+                            // 각 버스에 노선 정보 추가
+                            if (laneObject.has("busList")) {
+                                ArrayNode busListArray = (ArrayNode) laneObject.get("busList");
+                                ArrayNode enrichedBusList = objectMapper.createArrayNode();
+                                
+                                for (JsonNode bus : busListArray) {
+                                    ObjectNode busObject = bus.deepCopy();
+                                    
+                                    if (bus.has("busID")) {
+                                        int busID = bus.get("busID").asInt();
+                                        
+                                        // 캐시에 없으면 API 호출
+                                        if (!busLaneDetailCache.containsKey(busID)) {
+                                            JsonNode laneDetail = getBusLaneDetail(busID, apiKey);
+                                            if (laneDetail != null) {
+                                                busLaneDetailCache.put(busID, laneDetail);
+                                            }
+                                        }
+                                        
+                                        // 캐시에서 노선 정보 가져와서 추가
+                                        JsonNode laneDetail = busLaneDetailCache.get(busID);
+                                        if (laneDetail != null) {
+                                            busObject.set("laneDetail", laneDetail);
+                                        }
+                                    }
+                                    
+                                    enrichedBusList.add(busObject);
+                                }
+                                
+                                laneObject.set("busList", enrichedBusList);
                             }
                             
                             filteredLaneArray.add(laneObject);
@@ -179,6 +214,51 @@ public class BusController {
             }
         } catch (Exception e) {
             System.err.println("Error getting bus station direction for stationID " + stationID + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return null;
+    }
+
+    /**
+     * 버스 ID로 busLaneDetail API를 호출하여 노선 정보 반환
+     * @param busID 버스 ID
+     * @param apiKey ODsay API Key
+     * @return 노선 정보 (JsonNode) - null이면 오류 발생
+     */
+    private JsonNode getBusLaneDetail(int busID, String apiKey) {
+        try {
+            String urlInfo = "https://api.odsay.com/v1/api/busLaneDetail?lang=0&busID=" + busID + "&apiKey=" + apiKey;
+            
+            URL url = new URL(urlInfo);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Content-type", "application/json");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Referer", "http://localhost:3000");
+            
+            int responseCode = conn.getResponseCode();
+            
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = bufferedReader.readLine()) != null) {
+                    sb.append(line);
+                }
+                bufferedReader.close();
+                conn.disconnect();
+                
+                // JSON 파싱하여 result 반환
+                JsonNode rootNode = objectMapper.readTree(sb.toString());
+                JsonNode resultNode = rootNode.get("result");
+                
+                if (resultNode != null) {
+                    return resultNode;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error getting bus lane detail for busID " + busID + ": " + e.getMessage());
             e.printStackTrace();
         }
         
