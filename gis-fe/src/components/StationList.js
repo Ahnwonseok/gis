@@ -181,7 +181,7 @@ const StationList = ({ onBack, onStationSelect }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [locationError, setLocationError] = useState(null);
-  const radius = 500; // 기본값 100m로 고정
+  const radius = 200; // 기본값 100m로 고정
 
   // 현재 위치 가져오기
   const getCurrentLocation = () => {

@@ -38,11 +38,18 @@ function App() {
   };
 
   const handleBackToStations = () => {
+    // 뒤로 갈 때는 selectedStation을 유지하지 않음 (근처 정류장 목록으로 돌아감)
+    // 하지만 selectedStation은 유지하여 나중에 다시 선택할 수 있도록 함
     setCurrentView('stations');
   };
 
-  const handleSearchSelect = (searchType) => {
+  const handleSearchSelect = (searchType, stationWithDetail) => {
     // searchType: 'bus' 또는 'destination'
+    // stationWithDetail: 상세 정보가 포함된 station 객체
+    if (stationWithDetail) {
+      setSelectedStation(stationWithDetail);
+    }
+    
     if (searchType === 'bus') {
       setCurrentView('busSelect');
     } else if (searchType === 'destination') {
@@ -52,6 +59,7 @@ function App() {
   };
 
   const handleBackToStationSelect = () => {
+    // 뒤로 갈 때는 selectedStation을 그대로 유지 (API 호출하지 않음)
     setCurrentView('stationSelect');
   };
 
