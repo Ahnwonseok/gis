@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import api from '../api/axiosInstance';
 
+// 모듈 레벨 캐시: 정류장 목록 저장
+let cachedStations = [];
+
 const Container = styled.div`
   width: 100%;
   min-height: 100vh;
@@ -177,7 +180,8 @@ const StationDirection = styled.div`
 `;
 
 const StationList = ({ onBack, onStationSelect }) => {
-  const [stations, setStations] = useState([]);
+  // 캐시된 정류장 목록이 있으면 초기값으로 사용
+  const [stations, setStations] = useState(cachedStations);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [locationError, setLocationError] = useState(null);
@@ -243,6 +247,12 @@ const StationList = ({ onBack, onStationSelect }) => {
 
   // 정류장 조회
   const fetchStations = async () => {
+    // 캐시된 정류장 목록이 있으면 API 호출하지 않음
+    if (cachedStations.length > 0) {
+      setStations(cachedStations);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setLocationError(null);
@@ -281,7 +291,9 @@ const StationList = ({ onBack, onStationSelect }) => {
       // 정류장 목록 추출 (백엔드에서 이미 가까운 순으로 정렬되어 옴)
       if (data && data.result && data.result.lane && Array.isArray(data.result.lane)) {
         if (data.result.lane.length > 0) {
-          setStations(data.result.lane);
+          // 캐시에 저장
+          cachedStations = data.result.lane;
+          setStations(cachedStations);
         } else {
           setError('100m 이내에 정류장 정보를 찾을 수 없습니다.');
         }

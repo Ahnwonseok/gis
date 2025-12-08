@@ -4,9 +4,14 @@ import KakaoMap from './components/KakaoMap';
 import StationList from './components/StationList';
 import StationSelect from './components/StationSelect';
 import BusSelect from './components/BusSelect';
+import DestinationSearch from './components/DestinationSearch';
+
+// 모듈 레벨 캐시: stationID -> 상세 정보 (StationSelect의 캐시와 동일하게 유지)
+// StationSelect.js에서 export하거나, 여기서도 같은 캐시를 참조할 수 있도록
+// 일단 App.js에서도 별도로 관리하되, StationSelect에서 캐시를 사용하도록 함
 
 function App() {
-  const [currentView, setCurrentView] = useState('main'); // 'main', 'stations', 'stationSelect', 'busSelect', 'map'
+  const [currentView, setCurrentView] = useState('main'); // 'main', 'stations', 'stationSelect', 'busSelect', 'destinationSearch', 'map'
   const [selectedStation, setSelectedStation] = useState(null);
 
   const handleMenuSelect = (menu) => {
@@ -33,6 +38,9 @@ function App() {
   };
 
   const handleStationSelect = (station) => {
+    // 같은 stationID이고 이미 상세 정보가 있으면 기존 selectedStation 유지
+    // StationSelect 컴포넌트 내부에서 캐시를 확인하므로 여기서는 그대로 전달
+    // StationSelect가 캐시를 확인하여 API 호출 여부를 결정함
     setSelectedStation(station);
     setCurrentView('stationSelect');
   };
@@ -53,8 +61,7 @@ function App() {
     if (searchType === 'bus') {
       setCurrentView('busSelect');
     } else if (searchType === 'destination') {
-      // 추후 구현: 도착지 검색 화면으로 이동
-      console.log('도착지 검색 - 추후 구현');
+      setCurrentView('destinationSearch');
     }
   };
 
@@ -92,6 +99,12 @@ function App() {
           station={selectedStation}
           onBack={handleBackToStationSelect}
           onBusSelect={handleBusSelect}
+        />
+      )}
+      {currentView === 'destinationSearch' && selectedStation && (
+        <DestinationSearch
+          station={selectedStation}
+          onBack={handleBackToStationSelect}
         />
       )}
       {currentView === 'map' && (

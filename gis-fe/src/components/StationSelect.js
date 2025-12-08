@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import api from '../api/axiosInstance';
 
+// 모듈 레벨 캐시: stationID -> 상세 정보
+const stationDetailCache = {};
+
 const Container = styled.div`
   width: 100%;
   min-height: 100vh;
@@ -135,16 +138,24 @@ const ErrorMessage = styled.div`
   margin: 20px 0;
 `;
 
-const StationSelect = ({ station, cachedDetail, onBack, onSelect, onDetailLoaded }) => {
+const StationSelect = ({ station, onBack, onSelect }) => {
   const [stationDetail, setStationDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 정류장 상세 정보 조회 (캐시 또는 기존 상세 정보가 있으면 API 호출하지 않음)
+  // 정류장 상세 정보 조회 (캐시 우선, 이미 상세 정보가 있으면 API 호출하지 않음)
   useEffect(() => {
-    // 1. 캐시에서 상세 정보 확인
-    if (cachedDetail) {
-      setStationDetail(cachedDetail);
+    if (!station?.stationID) {
+      setError('정류장 정보가 없습니다.');
+      setLoading(false);
+      return;
+    }
+
+    const stationID = station.stationID;
+
+    // 1. 캐시에서 확인
+    if (stationDetailCache[stationID]) {
+      setStationDetail(stationDetailCache[stationID]);
       setLoading(false);
       return;
     }
@@ -153,31 +164,23 @@ const StationSelect = ({ station, cachedDetail, onBack, onSelect, onDetailLoaded
     if (station?.busList && Array.isArray(station.busList) && station.busList.length > 0) {
       const hasDetailInfo = station.busList.some(bus => bus.laneDetail || bus.nextStationName);
       if (hasDetailInfo) {
+        // 캐시에 저장
+        stationDetailCache[stationID] = station;
         setStationDetail(station);
         setLoading(false);
-        // 캐시에 저장
-        if (station.stationID && onDetailLoaded) {
-          onDetailLoaded(station.stationID, station);
-        }
         return;
       }
     }
 
-    // 상세 정보가 없으면 API 호출
+    // 3. 캐시에 없고 상세 정보도 없으면 API 호출
     const fetchStationDetail = async () => {
-      if (!station?.stationID) {
-        setError('정류장 정보가 없습니다.');
-        setLoading(false);
-        return;
-      }
-
       setLoading(true);
       setError(null);
 
       try {
         const response = await api.get('/station/detail', {
           params: {
-            stationID: station.stationID,
+            stationID: stationID,
           },
         });
 
@@ -195,11 +198,9 @@ const StationSelect = ({ station, cachedDetail, onBack, onSelect, onDetailLoaded
         }
 
         if (data && data.result) {
-          setStationDetail(data.result);
           // 캐시에 저장
-          if (station.stationID && onDetailLoaded) {
-            onDetailLoaded(station.stationID, data.result);
-          }
+          stationDetailCache[stationID] = data.result;
+          setStationDetail(data.result);
         } else {
           setError('정류장 상세 정보를 찾을 수 없습니다.');
         }
