@@ -225,22 +225,33 @@ const DestinationSearch = ({ station, onBack }) => {
       const searchTerm = destination.trim();
       console.log('검색어:', searchTerm, '길이:', searchTerm.length);
       
+      // 먼저 출발 정류장 찾기
+      for (let i = 0; i < stations.length; i++) {
+        const station = stations[i];
+        if (station.stationID === departureStationID) {
+          departureIdx = i;
+          console.log(`출발 정류장 찾음: ${station.stationName} (배열 인덱스: ${departureIdx})`);
+          break;
+        }
+      }
+      
+      // 출발 정류장을 찾지 못하면 다음 버스로
+      if (departureIdx === -1) {
+        console.log(`❌ 버스 ${bus.busNo}: 출발 정류장을 찾을 수 없음`);
+        return;
+      }
+      
+      // 도착 정류장 찾기: 출발 정류장보다 뒤에 있는 정류장을 우선적으로 찾음
+      const matchingStations = []; // 매칭되는 모든 정류장 인덱스
+      
       for (let i = 0; i < stations.length; i++) {
         const station = stations[i];
         
-        // 출발 정류장 찾기 (배열 인덱스 사용)
-        if (station.stationID === departureStationID) {
-          departureIdx = i; // 배열 인덱스를 사용
-          console.log(`출발 정류장 찾음: ${station.stationName} (배열 인덱스: ${departureIdx})`);
-        }
-        
-        // 도착 정류장 찾기 (정류장명으로 검색)
         if (station.stationName) {
           // 정류장명 정규화 (모든 공백 제거, 앞뒤 공백 제거)
           const stationName = String(station.stationName).trim();
           
           // 검색어와 정류장명을 모두 정규화하여 비교
-          // 한국어의 경우 공백이나 특수문자 문제를 피하기 위해
           const normalizedStationName = stationName.replace(/\s+/g, '');
           const normalizedSearchTerm = searchTerm.replace(/\s+/g, '');
           
@@ -252,13 +263,20 @@ const DestinationSearch = ({ station, onBack }) => {
           
           // 정규화된 문자열로 포함 검색
           if (normalizedStationName.includes(normalizedSearchTerm)) {
-            // 배열 인덱스를 사용
-            if (arrivalIdx === -1 || i < arrivalIdx) {
-              arrivalIdx = i;
-              console.log(`✅ 매칭 성공: ${stationName} (배열 인덱스: ${arrivalIdx})`);
-            }
+            matchingStations.push(i);
+            console.log(`✅ 매칭 발견: ${stationName} (배열 인덱스: ${i})`);
           }
         }
+      }
+      
+      // 출발 정류장보다 뒤에 있는 정류장만 선택 (버스는 앞으로만 이동하므로)
+      const stationsAfterDeparture = matchingStations.filter(idx => idx > departureIdx);
+      if (stationsAfterDeparture.length > 0) {
+        arrivalIdx = Math.min(...stationsAfterDeparture);
+        console.log(`✅ 도착 정류장 선택 (출발 이후): ${stations[arrivalIdx].stationName} (배열 인덱스: ${arrivalIdx})`);
+      } else {
+        // 출발 정류장 이후에 도착 정류장이 없으면 결과에 포함하지 않음
+        console.log(`❌ 버스 ${bus.busNo}: 출발 정류장 이후에 도착 정류장이 없음`);
       }
 
       // 디버깅: 인덱스 값 확인
@@ -279,40 +297,46 @@ const DestinationSearch = ({ station, onBack }) => {
       let stationCount = -1;
       let isValidRoute = false;
 
-      // 케이스 1: 출발 정류장이 도착 정류장보다 앞에 있는 경우 (일반적인 경우)
+      // 케이스 1: 출발 정류장이 도착 정류장보다 앞에 있는 경우 (배열 순서상)
       if (departureIdx < arrivalIdx) {
-        // 회차점을 넘지 않았는지 확인
+        // 출발과 도착이 모두 회차점 이전에 있는 경우
         if (arrivalIdx <= turningPointIdx) {
           stationCount = arrivalIdx - departureIdx;
           isValidRoute = true;
           console.log(`✅ 버스 ${bus.busNo} 케이스1: 정상 경로 (${stationCount}개 정류장)`);
-        } else {
-          console.log(`❌ 버스 ${bus.busNo}: 회차점을 넘음 (arrivalIdx: ${arrivalIdx} > turningPointIdx: ${turningPointIdx})`);
+        }
+        // 출발과 도착이 모두 회차점 이후에 있는 경우
+        else if (departureIdx > turningPointIdx && arrivalIdx > turningPointIdx) {
+          stationCount = arrivalIdx - departureIdx;
+          isValidRoute = true;
+          console.log(`✅ 버스 ${bus.busNo} 케이스2: 회차점 이후 경로 (${stationCount}개 정류장)`);
+        }
+        // 출발은 회차점 이전, 도착은 회차점 이후 (불가능)
+        else {
+          console.log(`❌ 버스 ${bus.busNo}: 출발은 회차점 이전, 도착은 회차점 이후 (불가능)`);
         }
       }
-      // 케이스 2: 출발 정류장이 도착 정류장보다 뒤에 있는 경우 (순환 노선 고려)
+      // 케이스 3: 출발 정류장이 도착 정류장보다 뒤에 있는 경우 (순환 노선 고려)
       else if (departureIdx > arrivalIdx) {
-        // 출발 정류장이 회차점 이후에 있고, 도착 정류장이 회차점 이전에 있는 경우
-        // 순환 노선에서 출발 정류장 이후에 도착 정류장이 올 수 있음
-        if (departureIdx > turningPointIdx && arrivalIdx <= turningPointIdx) {
+        // 출발과 도착이 모두 회차점 이후에 있는 경우 (순환 경로)
+        if (departureIdx > turningPointIdx && arrivalIdx > turningPointIdx) {
           // 순환 경로: 출발 정류장 -> 배열 끝 -> 배열 시작 -> 도착 정류장
           stationCount = (stations.length - departureIdx) + arrivalIdx;
           isValidRoute = true;
-          console.log(`✅ 버스 ${bus.busNo} 케이스2: 순환 경로 (${stationCount}개 정류장)`);
+          console.log(`✅ 버스 ${bus.busNo} 케이스3: 회차점 이후 순환 경로 (${stationCount}개 정류장)`);
         }
-        // 출발 정류장과 도착 정류장이 모두 회차점 이후에 있는 경우
-        else if (departureIdx > turningPointIdx && arrivalIdx > turningPointIdx) {
-          // 출발 정류장 이후에 도착 정류장이 있는지 확인 (순환 고려)
-          // 하지만 이 경우는 일반적으로 불가능 (배열 순서상)
-          console.log(`❌ 버스 ${bus.busNo}: 출발과 도착 모두 회차점 이후 (순환 불가)`);
+        // 출발이 회차점 이후, 도착이 회차점 이전 (순환 경로)
+        else if (departureIdx > turningPointIdx && arrivalIdx <= turningPointIdx) {
+          stationCount = (stations.length - departureIdx) + arrivalIdx;
+          isValidRoute = true;
+          console.log(`✅ 버스 ${bus.busNo} 케이스4: 순환 경로 (${stationCount}개 정류장)`);
         }
-        // 출발 정류장과 도착 정류장이 모두 회차점 이전에 있는 경우
-        else if (departureIdx <= turningPointIdx && arrivalIdx <= turningPointIdx) {
-          // 이 경우는 출발이 도착보다 뒤에 있으면 불가능
+        // 출발과 도착이 모두 회차점 이전 (불가능)
+        else {
           console.log(`❌ 버스 ${bus.busNo}: 출발이 도착보다 뒤에 있지만 모두 회차점 이전 (불가능)`);
         }
       }
-      // 케이스 3: 출발 정류장과 도착 정류장이 같은 경우
+      // 케이스 5: 출발 정류장과 도착 정류장이 같은 경우
       else {
         console.log(`❌ 버스 ${bus.busNo}: 출발 정류장과 도착 정류장이 같음`);
       }

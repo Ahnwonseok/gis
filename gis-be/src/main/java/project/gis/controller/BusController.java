@@ -82,7 +82,7 @@ public class BusController {
                     ArrayNode laneArray = (ArrayNode) resultNode.get("lane");
                     ArrayNode filteredLaneArray = objectMapper.createArrayNode();
                     
-                    // stationClass가 1인 것만 필터링 (간단한 정보만 유지, direction 포함)
+                    // stationClass가 1인 것만 필터링 (간단한 정보만 유지)
                     for (JsonNode lane : laneArray) {
                         if (lane.has("stationClass") && lane.get("stationClass").asInt() == 1) {
                             ObjectNode laneObject = objectMapper.createObjectNode();
