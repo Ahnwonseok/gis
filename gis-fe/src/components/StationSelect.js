@@ -1,9 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import styled from 'styled-components';
-import api from '../api/axiosInstance';
-
-// 모듈 레벨 캐시: stationID -> 상세 정보
-const stationDetailCache = {};
 
 const Container = styled.div`
   width: 100%;
@@ -139,95 +135,13 @@ const ErrorMessage = styled.div`
 `;
 
 const StationSelect = ({ station, onBack, onSelect }) => {
-  const [stationDetail, setStationDetail] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // 정류장 상세 정보 조회 (캐시 우선, 이미 상세 정보가 있으면 API 호출하지 않음)
-  useEffect(() => {
-    if (!station?.stationID) {
-      setError('정류장 정보가 없습니다.');
-      setLoading(false);
-      return;
-    }
-
-    const stationID = station.stationID;
-
-    // 1. 캐시에서 확인
-    if (stationDetailCache[stationID]) {
-      setStationDetail(stationDetailCache[stationID]);
-      setLoading(false);
-      return;
-    }
-
-    // 2. station prop에 이미 상세 정보가 있는지 확인
-    if (station?.busList && Array.isArray(station.busList) && station.busList.length > 0) {
-      const hasDetailInfo = station.busList.some(bus => bus.laneDetail || bus.nextStationName);
-      if (hasDetailInfo) {
-        // 캐시에 저장
-        stationDetailCache[stationID] = station;
-        setStationDetail(station);
-        setLoading(false);
-        return;
-      }
-    }
-
-    // 3. 캐시에 없고 상세 정보도 없으면 API 호출
-    const fetchStationDetail = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await api.get('/station/detail', {
-          params: {
-            stationID: stationID,
-          },
-        });
-
-        // 응답 데이터 파싱
-        let data;
-        try {
-          data = typeof response.data === 'string' 
-            ? JSON.parse(response.data) 
-            : response.data;
-        } catch (parseError) {
-          console.error('JSON 파싱 오류:', parseError);
-          setError('응답 데이터를 파싱할 수 없습니다.');
-          setLoading(false);
-          return;
-        }
-
-        if (data && data.result) {
-          // 캐시에 저장
-          stationDetailCache[stationID] = data.result;
-          setStationDetail(data.result);
-        } else {
-          setError('정류장 상세 정보를 찾을 수 없습니다.');
-        }
-      } catch (err) {
-        console.error('정류장 상세 정보 조회 오류:', err);
-        if (err.response) {
-          setError(`서버 오류가 발생했습니다. (${err.response.status})`);
-        } else if (err.request) {
-          setError('서버에 연결할 수 없습니다.');
-        } else {
-          setError('정류장 상세 정보를 가져오는 중 오류가 발생했습니다.');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStationDetail();
-  }, [station?.stationID]);
-
-  const stationName = stationDetail?.stationName || station?.stationName || station?.name || '정류장명 없음';
-  const direction = stationDetail?.direction || station?.direction || '';
+  // 이제 첫 요청에서 모든 정보가 포함되어 있으므로 별도 API 호출 불필요
+  const stationName = station?.stationName || station?.name || '정류장명 없음';
+  const direction = station?.direction || '';
 
   const handleSelect = (type) => {
-    // 상세 정보가 포함된 station 객체를 전달
-    const stationWithDetail = stationDetail || station;
-    onSelect(type, stationWithDetail);
+    // station 객체를 그대로 전달 (이미 모든 정보 포함)
+    onSelect(type, station);
   };
 
   return (
@@ -239,33 +153,21 @@ const StationSelect = ({ station, onBack, onSelect }) => {
         </BackButton>
       </Header>
 
-      {loading && (
-        <LoadingMessage>정류장 정보를 불러오는 중...</LoadingMessage>
-      )}
+      <StationInfo>
+        <StationName>{stationName}</StationName>
+        {direction && (
+          <StationDirection>→ {direction} 방면</StationDirection>
+        )}
+      </StationInfo>
 
-      {error && (
-        <ErrorMessage>{error}</ErrorMessage>
-      )}
-
-      {!loading && !error && (
-        <>
-          <StationInfo>
-            <StationName>{stationName}</StationName>
-            {direction && (
-              <StationDirection>→ {direction} 방면</StationDirection>
-            )}
-          </StationInfo>
-
-          <MenuButtonContainer>
-            <MenuButton onClick={() => handleSelect('bus')}>
-              1. 버스 선택
-            </MenuButton>
-            <MenuButton onClick={() => handleSelect('destination')}>
-              2. 도착지 검색
-            </MenuButton>
-          </MenuButtonContainer>
-        </>
-      )}
+      <MenuButtonContainer>
+        <MenuButton onClick={() => handleSelect('bus')}>
+          1. 버스 선택
+        </MenuButton>
+        <MenuButton onClick={() => handleSelect('destination')}>
+          2. 도착지 검색
+        </MenuButton>
+      </MenuButtonContainer>
     </Container>
   );
 };

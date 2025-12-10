@@ -185,7 +185,6 @@ const StationList = ({ onBack, onStationSelect }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [locationError, setLocationError] = useState(null);
-  const radius = 200; // 기본값 100m로 고정
 
   // 현재 위치 가져오기
   const getCurrentLocation = () => {
@@ -267,7 +266,6 @@ const StationList = ({ onBack, onStationSelect }) => {
         params: {
           x: location.lng, // 경도
           y: location.lat, // 위도
-          radius: radius, // 선택된 반경
         },
       });
 
@@ -295,7 +293,7 @@ const StationList = ({ onBack, onStationSelect }) => {
           cachedStations = data.result.lane;
           setStations(cachedStations);
         } else {
-          setError('100m 이내에 정류장 정보를 찾을 수 없습니다.');
+          setError('근처에 정류장 정보를 찾을 수 없습니다.');
         }
       } else {
         console.error('예상하지 못한 응답 구조:', data);

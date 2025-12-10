@@ -217,32 +217,36 @@ const DestinationSearch = ({ station, onBack }) => {
 
       const stations = laneDetail.station;
       
-      // 출발 정류장과 도착 정류장 찾기
-      let departureIdx = -1;
-      let arrivalIdx = -1;
+      // 출발 정류장과 도착 정류장 찾기 (stationSeq 사용)
+      let departureSeq = -1;
+      let arrivalSeq = -1;
+      let departureStation = null;
+      let arrivalStation = null;
 
       // 검색어 정규화 (공백 제거)
       const searchTerm = destination.trim();
       console.log('검색어:', searchTerm, '길이:', searchTerm.length);
       
-      // 먼저 출발 정류장 찾기
+      // 먼저 출발 정류장 찾기 (stationID로 비교, 백엔드에서 stationId를 stationID로 변환함)
       for (let i = 0; i < stations.length; i++) {
         const station = stations[i];
-        if (station.stationID === departureStationID) {
-          departureIdx = i;
-          console.log(`출발 정류장 찾음: ${station.stationName} (배열 인덱스: ${departureIdx})`);
+        const stationId = station.stationID || station.stationId; // stationID 우선, 없으면 stationId
+        if (stationId === departureStationID) {
+          departureSeq = station.stationSeq || (i + 1);
+          departureStation = station;
+          console.log(`출발 정류장 찾음: ${station.stationName} (stationSeq: ${departureSeq})`);
           break;
         }
       }
       
       // 출발 정류장을 찾지 못하면 다음 버스로
-      if (departureIdx === -1) {
+      if (departureSeq === -1 || !departureStation) {
         console.log(`❌ 버스 ${bus.busNo}: 출발 정류장을 찾을 수 없음`);
         return;
       }
       
       // 도착 정류장 찾기: 출발 정류장보다 뒤에 있는 정류장을 우선적으로 찾음
-      const matchingStations = []; // 매칭되는 모든 정류장 인덱스
+      const matchingStations = []; // 매칭되는 모든 정류장 정보
       
       for (let i = 0; i < stations.length; i++) {
         const station = stations[i];
@@ -263,27 +267,31 @@ const DestinationSearch = ({ station, onBack }) => {
           
           // 정규화된 문자열로 포함 검색
           if (normalizedStationName.includes(normalizedSearchTerm)) {
-            matchingStations.push(i);
-            console.log(`✅ 매칭 발견: ${stationName} (배열 인덱스: ${i})`);
+            const stationSeq = station.stationSeq || (i + 1);
+            matchingStations.push({ station, stationSeq, index: i });
+            console.log(`✅ 매칭 발견: ${stationName} (stationSeq: ${stationSeq})`);
           }
         }
       }
       
-      // 출발 정류장보다 뒤에 있는 정류장만 선택 (버스는 앞으로만 이동하므로)
-      const stationsAfterDeparture = matchingStations.filter(idx => idx > departureIdx);
+      // 출발 정류장보다 뒤에 있는 정류장만 선택 (stationSeq 기준)
+      const stationsAfterDeparture = matchingStations.filter(item => item.stationSeq > departureSeq);
       if (stationsAfterDeparture.length > 0) {
-        arrivalIdx = Math.min(...stationsAfterDeparture);
-        console.log(`✅ 도착 정류장 선택 (출발 이후): ${stations[arrivalIdx].stationName} (배열 인덱스: ${arrivalIdx})`);
+        // stationSeq가 가장 작은 것 선택 (가장 가까운 도착지)
+        stationsAfterDeparture.sort((a, b) => a.stationSeq - b.stationSeq);
+        arrivalStation = stationsAfterDeparture[0].station;
+        arrivalSeq = stationsAfterDeparture[0].stationSeq;
+        console.log(`✅ 도착 정류장 선택 (출발 이후): ${arrivalStation.stationName} (stationSeq: ${arrivalSeq})`);
       } else {
         // 출발 정류장 이후에 도착 정류장이 없으면 결과에 포함하지 않음
         console.log(`❌ 버스 ${bus.busNo}: 출발 정류장 이후에 도착 정류장이 없음`);
       }
 
-      // 디버깅: 인덱스 값 확인
-      console.log(`버스 ${bus.busNo}: departureIdx=${departureIdx}, arrivalIdx=${arrivalIdx}`);
+      // 디버깅: stationSeq 값 확인
+      console.log(`버스 ${bus.busNo}: departureSeq=${departureSeq}, arrivalSeq=${arrivalSeq}`);
       
-      if (departureIdx === -1 || arrivalIdx === -1) {
-        if (departureIdx === -1) {
+      if (departureSeq === -1 || arrivalSeq === -1 || !arrivalStation) {
+        if (departureSeq === -1) {
           console.log(`❌ 버스 ${bus.busNo}: 출발 정류장을 찾을 수 없음`);
         } else {
           console.log(`❌ 버스 ${bus.busNo}: 도착 정류장을 찾을 수 없음`);
@@ -291,23 +299,40 @@ const DestinationSearch = ({ station, onBack }) => {
         return;
       }
 
-      const turningPointIdx = laneDetail.turningPointIdx !== undefined ? laneDetail.turningPointIdx : stations.length;
-      console.log(`버스 ${bus.busNo}: turningPointIdx=${turningPointIdx}, departureIdx=${departureIdx}, arrivalIdx=${arrivalIdx}`);
+      // 회차점 찾기 (turnYn이 "Y"인 첫 번째 정류장의 turnSeq)
+      let turningPointSeq = -1;
+      for (const station of stations) {
+        if (station.turnYn === "Y" && station.turnSeq) {
+          turningPointSeq = station.turnSeq;
+          break;
+        }
+      }
+      
+      // turnSeq가 없으면 turningPointIdx 사용 (기존 호환성)
+      if (turningPointSeq === -1 && laneDetail.turningPointIdx !== undefined) {
+        // turningPointIdx는 배열 인덱스이므로 stationSeq로 변환
+        const turningPointStation = stations[laneDetail.turningPointIdx];
+        if (turningPointStation && turningPointStation.stationSeq) {
+          turningPointSeq = turningPointStation.stationSeq;
+        }
+      }
+      
+      console.log(`버스 ${bus.busNo}: turningPointSeq=${turningPointSeq}, departureSeq=${departureSeq}, arrivalSeq=${arrivalSeq}`);
       
       let stationCount = -1;
       let isValidRoute = false;
 
-      // 케이스 1: 출발 정류장이 도착 정류장보다 앞에 있는 경우 (배열 순서상)
-      if (departureIdx < arrivalIdx) {
+      // 케이스 1: 출발 정류장이 도착 정류장보다 앞에 있는 경우 (stationSeq 기준)
+      if (departureSeq < arrivalSeq) {
         // 출발과 도착이 모두 회차점 이전에 있는 경우
-        if (arrivalIdx <= turningPointIdx) {
-          stationCount = arrivalIdx - departureIdx;
+        if (turningPointSeq === -1 || arrivalSeq <= turningPointSeq) {
+          stationCount = arrivalSeq - departureSeq;
           isValidRoute = true;
           console.log(`✅ 버스 ${bus.busNo} 케이스1: 정상 경로 (${stationCount}개 정류장)`);
         }
         // 출발과 도착이 모두 회차점 이후에 있는 경우
-        else if (departureIdx > turningPointIdx && arrivalIdx > turningPointIdx) {
-          stationCount = arrivalIdx - departureIdx;
+        else if (departureSeq > turningPointSeq && arrivalSeq > turningPointSeq) {
+          stationCount = arrivalSeq - departureSeq;
           isValidRoute = true;
           console.log(`✅ 버스 ${bus.busNo} 케이스2: 회차점 이후 경로 (${stationCount}개 정류장)`);
         }
@@ -317,17 +342,20 @@ const DestinationSearch = ({ station, onBack }) => {
         }
       }
       // 케이스 3: 출발 정류장이 도착 정류장보다 뒤에 있는 경우 (순환 노선 고려)
-      else if (departureIdx > arrivalIdx) {
+      else if (departureSeq > arrivalSeq) {
         // 출발과 도착이 모두 회차점 이후에 있는 경우 (순환 경로)
-        if (departureIdx > turningPointIdx && arrivalIdx > turningPointIdx) {
+        if (turningPointSeq !== -1 && departureSeq > turningPointSeq && arrivalSeq > turningPointSeq) {
           // 순환 경로: 출발 정류장 -> 배열 끝 -> 배열 시작 -> 도착 정류장
-          stationCount = (stations.length - departureIdx) + arrivalIdx;
+          // 전체 정류장 수를 구해야 함
+          const maxSeq = Math.max(...stations.map(s => s.stationSeq || 0));
+          stationCount = (maxSeq - departureSeq + 1) + (arrivalSeq - 1);
           isValidRoute = true;
           console.log(`✅ 버스 ${bus.busNo} 케이스3: 회차점 이후 순환 경로 (${stationCount}개 정류장)`);
         }
         // 출발이 회차점 이후, 도착이 회차점 이전 (순환 경로)
-        else if (departureIdx > turningPointIdx && arrivalIdx <= turningPointIdx) {
-          stationCount = (stations.length - departureIdx) + arrivalIdx;
+        else if (turningPointSeq !== -1 && departureSeq > turningPointSeq && arrivalSeq <= turningPointSeq) {
+          const maxSeq = Math.max(...stations.map(s => s.stationSeq || 0));
+          stationCount = (maxSeq - departureSeq + 1) + (arrivalSeq - 1);
           isValidRoute = true;
           console.log(`✅ 버스 ${bus.busNo} 케이스4: 순환 경로 (${stationCount}개 정류장)`);
         }
@@ -346,9 +374,9 @@ const DestinationSearch = ({ station, onBack }) => {
         results.push({
           bus: bus,
           stationCount: stationCount,
-          departureIdx: departureIdx,
-          arrivalIdx: arrivalIdx,
-          arrivalStationName: stations[arrivalIdx].stationName
+          departureSeq: departureSeq,
+          arrivalSeq: arrivalSeq,
+          arrivalStationName: arrivalStation.stationName
         });
       }
     });
@@ -403,8 +431,8 @@ const DestinationSearch = ({ station, onBack }) => {
           <>
             {searchResults.length > 0 ? (
               searchResults.map((result, index) => (
-                <ResultCard key={`${result.bus.busID}-${index}`}>
-                  <BusNumber>{result.bus.busNo}번 버스</BusNumber>
+                <ResultCard key={`${result.bus.busID || result.bus.routeId}-${index}`}>
+                  <BusNumber>{result.bus.busNo || result.bus.routeName}번 버스</BusNumber>
                   <RouteInfo>
                     출발: {stationName}
                   </RouteInfo>
