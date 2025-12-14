@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import api from '../api/axiosInstance';
 
@@ -179,12 +179,42 @@ const StationDirection = styled.div`
   }
 `;
 
+const StationDistance = styled.div`
+  font-size: 1.1rem;
+  font-weight: normal;
+  opacity: 0.85;
+  line-height: 1.4;
+  margin-top: 4px;
+  
+  @media (max-width: 768px) {
+    font-size: 1rem;
+  }
+`;
+
+const ScreenReaderOnly = styled.div`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+`;
+
 const StationList = ({ onBack, onStationSelect }) => {
   // 캐시된 정류장 목록이 있으면 초기값으로 사용
   const [stations, setStations] = useState(cachedStations);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false); // 검색 성공 여부 추적
+  const [statusMessage, setStatusMessage] = useState(''); // 스크린 리더용 상태 메시지
+  
+  // 포커스 관리를 위한 ref
+  const resultsRef = useRef(null);
+  const statusRef = useRef(null);
 
   // 현재 위치 가져오기
   const getCurrentLocation = () => {
@@ -245,10 +275,12 @@ const StationList = ({ onBack, onStationSelect }) => {
   };
 
   // 정류장 조회
-  const fetchStations = async () => {
-    // 캐시된 정류장 목록이 있으면 API 호출하지 않음
-    if (cachedStations.length > 0) {
+  const fetchStations = async (isRetry = false) => {
+    // 재검색 시에는 캐시 무시하고 항상 새로 검색
+    if (!isRetry && cachedStations.length > 0) {
       setStations(cachedStations);
+      setHasSearched(true);
+      setStatusMessage(`${cachedStations.length}개의 정류장을 찾았습니다.`);
       return;
     }
 
@@ -256,6 +288,7 @@ const StationList = ({ onBack, onStationSelect }) => {
     setError(null);
     setLocationError(null);
     setStations([]);
+    setStatusMessage('정류장을 검색하고 있습니다...');
 
     try {
       // 현재 위치 가져오기
@@ -264,8 +297,8 @@ const StationList = ({ onBack, onStationSelect }) => {
       // 백엔드 API 호출
       const response = await api.get('/station', {
         params: {
-          x: location.lng, // 경도
-          y: location.lat, // 위도
+          x: 126.933178,//location.lng, // 경도
+          y: 37.384311//location.lat, // 위도
         },
       });
 
@@ -292,31 +325,64 @@ const StationList = ({ onBack, onStationSelect }) => {
           // 캐시에 저장
           cachedStations = data.result.lane;
           setStations(cachedStations);
+          setHasSearched(true);
+          const stationCount = cachedStations.length;
+          setStatusMessage(`${stationCount}개의 정류장을 찾았습니다. 아래 목록에서 선택하세요.`);
+          
+          // 검색 성공 후 결과 영역으로 포커스 이동 (약간의 지연 후)
+          setTimeout(() => {
+            if (resultsRef.current) {
+              resultsRef.current.focus();
+            }
+          }, 100);
         } else {
           setError('근처에 정류장 정보를 찾을 수 없습니다.');
+          setStatusMessage('근처에 정류장 정보를 찾을 수 없습니다.');
         }
       } else {
         console.error('예상하지 못한 응답 구조:', data);
         setError('정류장 정보를 찾을 수 없습니다.');
+        setStatusMessage('정류장 정보를 찾을 수 없습니다.');
       }
     } catch (err) {
       console.error('전체 에러:', err);
       if (err.message && err.message.includes('위치')) {
         setLocationError(err.message);
+        setStatusMessage('위치 정보를 가져올 수 없습니다. 다시 시도해주세요.');
       } else if (err.response) {
         // HTTP 에러 응답
         console.error('HTTP 에러:', err.response.status, err.response.data);
-        setError(`서버 오류가 발생했습니다. (${err.response.status})`);
+        const errorMsg = `서버 오류가 발생했습니다. (${err.response.status})`;
+        setError(errorMsg);
+        setStatusMessage(errorMsg);
       } else if (err.request) {
         // 요청은 보냈지만 응답을 받지 못함
         console.error('응답 없음:', err.request);
-        setError('서버에 연결할 수 없습니다.');
+        const errorMsg = '서버에 연결할 수 없습니다.';
+        setError(errorMsg);
+        setStatusMessage(errorMsg);
       } else {
-        setError('정류장 정보를 가져오는 중 오류가 발생했습니다.');
+        const errorMsg = '정류장 정보를 가져오는 중 오류가 발생했습니다.';
+        setError(errorMsg);
+        setStatusMessage(errorMsg);
         console.error('Error fetching stations:', err);
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 거리 포맷팅 함수 (미터를 적절한 형식으로 변환)
+  const formatDistance = (distanceInMeters) => {
+    if (!distanceInMeters && distanceInMeters !== 0) {
+      return '';
+    }
+    
+    if (distanceInMeters < 1000) {
+      return `${Math.round(distanceInMeters)}m`;
+    } else {
+      const km = (distanceInMeters / 1000).toFixed(1);
+      return `${km}km`;
     }
   };
 
@@ -342,19 +408,34 @@ const StationList = ({ onBack, onStationSelect }) => {
       </Header>
 
       <FindButton 
-        onClick={fetchStations} 
+        onClick={() => fetchStations(true)} 
         disabled={loading}
+        aria-label={loading ? '정류장을 검색하고 있습니다' : hasSearched ? '위치를 업데이트하여 다시 검색' : '근처 정류장 찾기'}
+        aria-busy={loading}
       >
-        {loading ? '검색 중...' : '근처 정류장 찾기'}
+        {loading ? '검색 중...' : hasSearched ? '위치 업데이트' : '근처 정류장 찾기'}
       </FindButton>
+
+      {/* 스크린 리더용 상태 메시지 */}
+      <ScreenReaderOnly
+        ref={statusRef}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {statusMessage}
+      </ScreenReaderOnly>
 
       {locationError && (
         <div>
-          <ErrorMessage>{locationError}</ErrorMessage>
+          <ErrorMessage role="alert" aria-live="assertive">
+            {locationError}
+          </ErrorMessage>
           {locationError.includes('권한') && (
             <FindButton 
-              onClick={fetchStations}
+              onClick={() => fetchStations(true)}
               style={{ marginTop: '20px' }}
+              aria-label="위치 권한 문제 해결 후 다시 시도"
             >
               다시 시도
             </FindButton>
@@ -363,7 +444,9 @@ const StationList = ({ onBack, onStationSelect }) => {
       )}
 
       {error && (
-        <ErrorMessage>{error}</ErrorMessage>
+        <ErrorMessage role="alert" aria-live="assertive">
+          {error}
+        </ErrorMessage>
       )}
 
       {loading && !error && !locationError && (
@@ -371,19 +454,30 @@ const StationList = ({ onBack, onStationSelect }) => {
       )}
 
       {!loading && stations.length > 0 && (
-        <StationListContainer>
+        <StationListContainer
+          ref={resultsRef}
+          tabIndex={-1}
+          role="region"
+          aria-label="근처 정류장 목록"
+        >
           {stations.slice(0, 3).map((station, index) => {
             const stationName = station.stationName || station.name || '정류장명 없음';
             const direction = station.direction || '';
+            const distance = station.distance;
+            const formattedDistance = formatDistance(distance);
             
             return (
               <StationButton
                 key={index}
                 onClick={() => handleStationClick(station)}
+                aria-label={`${stationName}${direction ? `, ${direction} 방면` : ''}${formattedDistance ? `, 거리 ${formattedDistance}` : ''}. 선택하려면 클릭하세요.`}
               >
                 <StationName>{stationName}</StationName>
                 {direction && (
                   <StationDirection>→ {direction} 방면</StationDirection>
+                )}
+                {formattedDistance && (
+                  <StationDistance>📍 {formattedDistance}</StationDistance>
                 )}
               </StationButton>
             );

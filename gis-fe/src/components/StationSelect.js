@@ -148,9 +148,12 @@ const StationSelect = ({ station, onBack, onSelect }) => {
     <Container>
       <Header>
         <Title>정류장 선택</Title>
-        <BackButton onClick={onBack}>
-          ← 뒤로
-        </BackButton>
+          <BackButton 
+            onClick={onBack}
+            aria-label="근처 정류장 목록으로 돌아가기"
+          >
+            뒤로
+          </BackButton>
       </Header>
 
       <StationInfo>
@@ -160,11 +163,19 @@ const StationSelect = ({ station, onBack, onSelect }) => {
         )}
       </StationInfo>
 
-      <MenuButtonContainer>
-        <MenuButton onClick={() => handleSelect('bus')}>
+      <MenuButtonContainer role="menu" aria-label="정류장 메뉴">
+        <MenuButton 
+          onClick={() => handleSelect('bus')}
+          role="menuitem"
+          aria-label="버스 선택 메뉴"
+        >
           1. 버스 선택
         </MenuButton>
-        <MenuButton onClick={() => handleSelect('destination')}>
+        <MenuButton 
+          onClick={() => handleSelect('destination')}
+          role="menuitem"
+          aria-label="도착지 검색 메뉴"
+        >
           2. 도착지 검색
         </MenuButton>
       </MenuButtonContainer>

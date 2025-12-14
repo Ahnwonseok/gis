@@ -5,6 +5,7 @@ import StationList from './components/StationList';
 import StationSelect from './components/StationSelect';
 import BusSelect from './components/BusSelect';
 import DestinationSearch from './components/DestinationSearch';
+import BusArrivalMonitor from './components/BusArrivalMonitor';
 
 // 모듈 레벨 캐시: stationID -> 상세 정보 (StationSelect의 캐시와 동일하게 유지)
 // StationSelect.js에서 export하거나, 여기서도 같은 캐시를 참조할 수 있도록
@@ -13,6 +14,8 @@ import DestinationSearch from './components/DestinationSearch';
 function App() {
   const [currentView, setCurrentView] = useState('main'); // 'main', 'stations', 'stationSelect', 'busSelect', 'destinationSearch', 'map'
   const [selectedStation, setSelectedStation] = useState(null);
+  const [selectedBus, setSelectedBus] = useState(null); // 선택된 버스 정보
+  const [isMonitoring, setIsMonitoring] = useState(false); // 알림 모니터링 상태
 
   const handleMenuSelect = (menu) => {
     switch(menu) {
@@ -71,9 +74,20 @@ function App() {
   };
 
   const handleBusSelect = (bus, station) => {
-    // 버스 선택 시 처리 (추후 구현)
+    // 버스 선택 시 알림 모니터링 시작
     console.log('Selected bus:', bus, 'for station:', station);
-    // 예: 도착 알림 설정 화면으로 이동
+    setSelectedBus(bus);
+    setIsMonitoring(true);
+    
+    // 알림 권한 요청 (최초 1회)
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  };
+
+  const handleStopMonitoring = () => {
+    setIsMonitoring(false);
+    setSelectedBus(null);
   };
 
   return (
@@ -99,12 +113,20 @@ function App() {
           station={selectedStation}
           onBack={handleBackToStationSelect}
           onBusSelect={handleBusSelect}
+          onStationUpdate={(updatedStation) => {
+            setSelectedStation(updatedStation);
+          }}
+          selectedBusID={selectedBus?.busID}
+          onStopMonitoring={handleStopMonitoring}
         />
       )}
       {currentView === 'destinationSearch' && selectedStation && (
         <DestinationSearch
           station={selectedStation}
           onBack={handleBackToStationSelect}
+          onBusSelect={handleBusSelect}
+          selectedBusID={selectedBus?.busID}
+          onStopMonitoring={handleStopMonitoring}
         />
       )}
       {currentView === 'map' && (
@@ -132,6 +154,15 @@ function App() {
           </button>
           <KakaoMap />
         </div>
+      )}
+      
+      {/* 버스 도착 알림 모니터링 */}
+      {isMonitoring && selectedBus && selectedStation && (
+        <BusArrivalMonitor
+          bus={selectedBus}
+          station={selectedStation}
+          onClose={handleStopMonitoring}
+        />
       )}
     </div>
   );
