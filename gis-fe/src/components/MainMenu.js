@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
+import api from '../api/axiosInstance';
 
 const MenuContainer = styled.div`
   width: 100%;
@@ -218,44 +219,64 @@ const MainMenu = ({ onMenuSelect }) => {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
 
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-    const base64Data = imageData.split(',')[1];
+    // canvas를 Blob으로 변환
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        setTestResult('이미지 변환 실패');
+        return;
+      }
 
-    setIsProcessing(true);
-    setTestResult('OCR 처리 중...');
+      setIsProcessing(true);
+      setTestResult('OCR 처리 중...');
 
-    try {
-      const response = await axios.post(
-        CLOVA_OCR_URL,
-        {
+      try {
+        // multipart/form-data 형식으로 요청
+        const formData = new FormData();
+        
+        // message 필드에 JSON 데이터 추가 (파이썬 샘플과 동일)
+        const requestJson = {
           version: 'V2',
           requestId: `test-${Date.now()}`,
-          timestamp: Date.now(),
+          timestamp: Math.round(Date.now()), // 밀리초 단위 (파이썬 샘플: int(round(time.time() * 1000)))
           images: [
             {
               format: 'jpg',
-              name: 'test-image',
-              data: base64Data,
-              url: null
+              name: 'demo'
             }
           ]
-        },
-        {
-          headers: {
-            'X-OCR-SECRET': CLOVA_OCR_SECRET,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+        };
+        
+        formData.append('message', JSON.stringify(requestJson));
+        formData.append('file', blob, 'image.jpg');
 
-      console.log('OCR 응답:', response.data);
-      setTestResult(JSON.stringify(response.data, null, 2));
-    } catch (error) {
-      console.error('OCR 오류:', error);
-      setTestResult(`오류 발생:\n${error.message}\n${error.response ? JSON.stringify(error.response.data, null, 2) : ''}`);
-    } finally {
-      setIsProcessing(false);
-    }
+        // 백엔드 프록시를 통해 OCR API 호출 (CORS 문제 해결)
+        const response = await api.post(
+          '/ocr/recognize',
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+        );
+
+        console.log('OCR 응답:', response.data);
+        
+        // OCR 결과에서 텍스트 추출
+        if (response.data && response.data.images && response.data.images.length > 0) {
+          const fields = response.data.images[0].fields || [];
+          const texts = fields.map(field => field.inferText).join(' ');
+          setTestResult(`인식된 텍스트:\n${texts}\n\n전체 응답:\n${JSON.stringify(response.data, null, 2)}`);
+        } else {
+          setTestResult(JSON.stringify(response.data, null, 2));
+        }
+      } catch (error) {
+        console.error('OCR 오류:', error);
+        setTestResult(`오류 발생:\n${error.message}\n${error.response ? JSON.stringify(error.response.data, null, 2) : error.stack}`);
+      } finally {
+        setIsProcessing(false);
+      }
+    }, 'image/jpeg', 0.8);
   };
 
   const handleMenuClick = (menu) => {

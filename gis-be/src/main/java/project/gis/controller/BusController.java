@@ -4,11 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -679,6 +677,89 @@ public class BusController {
             }
         } catch (Exception e) {
             System.err.println("Error in getBusArrival: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("{\"error\": \"" + e.getMessage() + "\"}");
+        }
+    }
+
+    /**
+     * 네이버 클로바 OCR 프록시 엔드포인트
+     * CORS 문제를 해결하기 위해 백엔드를 통해 OCR API 호출
+     */
+    @PostMapping("/ocr/recognize")
+    public ResponseEntity<String> recognizeOCR(
+            @RequestParam("message") String message,
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
+        try {
+            String clovaOcrUrl = "https://xkrzt7gj72.apigw.ntruss.com/custom/v1/48680/c0040045314eaa9dd8625b3015fe86447f0cdb70ba931d7e1f6939e019330e58/general";
+            String clovaOcrSecret = "eFRUenNlWEhLdmJyQkhuTlBqWUFxZFRYT3NoWU5oSkY=";
+
+            // multipart/form-data 요청 생성
+            java.net.URL url = new java.net.URL(clovaOcrUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("X-OCR-SECRET", clovaOcrSecret);
+            conn.setDoOutput(true);
+
+            // multipart/form-data 형식으로 데이터 전송
+            String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            try (java.io.OutputStream os = conn.getOutputStream();
+                 java.io.PrintWriter writer = new java.io.PrintWriter(new java.io.OutputStreamWriter(os, "UTF-8"), true)) {
+                
+                // message 필드
+                writer.append("--" + boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"message\"").append("\r\n");
+                writer.append("Content-Type: text/plain; charset=UTF-8").append("\r\n");
+                writer.append("\r\n");
+                writer.append(message).append("\r\n");
+                writer.flush();
+
+                // file 필드
+                writer.append("--" + boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"" + file.getOriginalFilename() + "\"").append("\r\n");
+                writer.append("Content-Type: " + file.getContentType()).append("\r\n");
+                writer.append("\r\n");
+                writer.flush();
+
+                // 파일 데이터 전송
+                file.getInputStream().transferTo(os);
+                os.flush();
+
+                writer.append("\r\n");
+                writer.append("--" + boundary + "--").append("\r\n");
+                writer.flush();
+            }
+
+            // 응답 읽기
+            int responseCode = conn.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = bufferedReader.readLine()) != null) {
+                    sb.append(line);
+                }
+                bufferedReader.close();
+                conn.disconnect();
+
+                return ResponseEntity.ok(sb.toString());
+            } else {
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = bufferedReader.readLine()) != null) {
+                    sb.append(line);
+                }
+                bufferedReader.close();
+                conn.disconnect();
+
+                return ResponseEntity.status(responseCode).body(sb.toString());
+            }
+        } catch (Exception e) {
+            System.err.println("Error in OCR recognition: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(500).body("{\"error\": \"" + e.getMessage() + "\"}");
         }
