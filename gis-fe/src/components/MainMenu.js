@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
-import axios from 'axios';
 import api from '../api/axiosInstance';
 
 const MenuContainer = styled.div`
