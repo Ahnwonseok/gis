@@ -215,6 +215,9 @@ const StationList = ({ onBack, onStationSelect }) => {
   // 포커스 관리를 위한 ref
   const resultsRef = useRef(null);
   const statusRef = useRef(null);
+  // 중복 호출 방지를 위한 ref
+  const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef(null);
 
   // 현재 위치 가져오기
   const getCurrentLocation = () => {
@@ -276,6 +279,12 @@ const StationList = ({ onBack, onStationSelect }) => {
 
   // 정류장 조회
   const fetchStations = async (isRetry = false) => {
+    // 이미 호출 중이면 중복 호출 방지
+    if (isFetchingRef.current) {
+      console.log('이미 정류장 조회 중입니다. 중복 호출을 방지합니다.');
+      return;
+    }
+
     // 재검색 시에는 캐시 무시하고 항상 새로 검색
     if (!isRetry && cachedStations.length > 0) {
       setStations(cachedStations);
@@ -283,6 +292,16 @@ const StationList = ({ onBack, onStationSelect }) => {
       setStatusMessage(`${cachedStations.length}개의 정류장을 찾았습니다.`);
       return;
     }
+
+    // 이전 요청 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // 새로운 AbortController 생성
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    isFetchingRef.current = true;
 
     setLoading(true);
     setError(null);
@@ -294,12 +313,13 @@ const StationList = ({ onBack, onStationSelect }) => {
       // 현재 위치 가져오기
       const location = await getCurrentLocation();
       
-      // 백엔드 API 호출
+      // 백엔드 API 호출 (AbortSignal 전달)
       const response = await api.get('/station', {
         params: {
           x: 126.933178,//location.lng, // 경도
           y: 37.384311//location.lat, // 위도
         },
+        signal: abortController.signal,
       });
 
       // 응답 데이터 파싱
@@ -322,6 +342,10 @@ const StationList = ({ onBack, onStationSelect }) => {
       // 정류장 목록 추출 (백엔드에서 이미 가까운 순으로 정렬되어 옴)
       if (data && data.result && data.result.lane && Array.isArray(data.result.lane)) {
         if (data.result.lane.length > 0) {
+          // 성공 시 에러 상태 초기화
+          setError(null);
+          setLocationError(null);
+          
           // 캐시에 저장
           cachedStations = data.result.lane;
           setStations(cachedStations);
@@ -345,6 +369,12 @@ const StationList = ({ onBack, onStationSelect }) => {
         setStatusMessage('정류장 정보를 찾을 수 없습니다.');
       }
     } catch (err) {
+      // AbortError는 무시 (요청이 취소된 경우)
+      if (err.name === 'AbortError' || err.code === 'ERR_CANCELED' || (err.message && err.message.includes('canceled'))) {
+        console.log('정류장 조회가 취소되었습니다.');
+        return;
+      }
+      
       console.error('전체 에러:', err);
       if (err.message && err.message.includes('위치')) {
         setLocationError(err.message);
@@ -368,7 +398,12 @@ const StationList = ({ onBack, onStationSelect }) => {
         console.error('Error fetching stations:', err);
       }
     } finally {
-      setLoading(false);
+      // AbortError가 아닌 경우에만 상태 초기화
+      if (!abortControllerRef.current || abortControllerRef.current.signal.aborted === false) {
+        isFetchingRef.current = false;
+        abortControllerRef.current = null;
+        setLoading(false);
+      }
     }
   };
 
@@ -395,6 +430,15 @@ const StationList = ({ onBack, onStationSelect }) => {
   // 컴포넌트 마운트 시 자동으로 검색 실행
   useEffect(() => {
     fetchStations();
+    
+    // 컴포넌트 언마운트 시 진행 중인 요청 취소
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      isFetchingRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 빈 배열로 마운트 시 한 번만 실행
 

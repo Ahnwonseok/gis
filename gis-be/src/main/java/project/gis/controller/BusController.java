@@ -23,13 +23,12 @@ public class BusController {
     private final String serviceKey = "793e910884a18a6955614818e50eb25d7ea73fab714542fb5379d983464d589f";
 
     /**
-     * 좌표 기준 반경 내 버스 정류장 조회 (새로운 API 사용)
+     * 좌표 기준 반경 내 버스 정류장 조회 (기본 정보만 반환)
      * 1. getBusStationAroundListv2 - 근처 정류장 찾기
-     * 2. getBusStationViaRouteListv2 - 각 정류장의 경유 노선 조회
-     * 3. getBusRouteStationListv2 - 각 노선의 상세 정보 조회
+     * 2. 방면 정보 추출을 위한 간단한 노선 조회
      * @param x 경도 (longitude)
      * @param y 위도 (latitude)
-     * @return 버스 정류장 정보 (JSON) - 가장 가까운 3개 정류장과 각 정류장의 버스 정보 포함
+     * @return 버스 정류장 기본 정보 (JSON) - 정류장명, 방면, 거리, stationID, 좌표만 포함
      */
     @GetMapping("/station")
     public ResponseEntity<String> getBusStationByPoint(
@@ -51,7 +50,7 @@ public class BusController {
 
             ArrayNode laneArray = objectMapper.createArrayNode();
             
-            // 각 정류장에 대해 상세 정보 수집
+            // 각 정류장에 대해 기본 정보만 수집 (방면 정보를 위해 간단한 노선 조회)
             for (JsonNode station : nearbyStations) {
                 int stationId = station.get("stationId").asInt();
                 String stationName = station.has("stationName") ? station.get("stationName").asText() : "";
@@ -59,52 +58,40 @@ public class BusController {
                 double stationY = station.has("y") ? station.get("y").asDouble() : 0.0;
                 int distance = station.has("distance") ? station.get("distance").asInt() : 0;
                 
-                // 2단계: 정류장 경유 노선 조회
+                // 방면 정보 추출을 위한 간단한 노선 조회 (상세 정보는 조회하지 않음)
                 List<JsonNode> routeList = getBusStationViaRouteList(stationId);
                 
                 if (routeList.isEmpty()) {
+                    // 노선이 없어도 기본 정보는 반환
+                    ObjectNode laneObject = objectMapper.createObjectNode();
+                    laneObject.put("stationID", stationId);
+                    laneObject.put("stationName", stationName);
+                    laneObject.put("x", stationX);
+                    laneObject.put("y", stationY);
+                    laneObject.put("distance", distance);
+                    laneArray.add(laneObject);
                     continue;
                 }
                 
-                // 3단계: 각 노선의 상세 정보 조회
-                ArrayNode busListArray = objectMapper.createArrayNode();
-                Map<Integer, JsonNode> routeDetailCache = new HashMap<>();
-                Map<String, Integer> nextStationCount = new HashMap<>(); // 다음 정류장별 카운트
-                
-                for (JsonNode route : routeList) {
-                    int routeId = route.get("routeId").asInt();
-                    String routeName = route.has("routeName") ? route.get("routeName").asText() : "";
-                    String routeDestName = route.has("routeDestName") ? route.get("routeDestName").asText() : "";
+                // 방면 정보 추출을 위해 첫 번째 노선의 상세 정보만 간단히 조회
+                Map<String, Integer> nextStationCount = new HashMap<>();
+                if (!routeList.isEmpty()) {
+                    JsonNode firstRoute = routeList.get(0);
+                    int routeId = firstRoute.get("routeId").asInt();
                     
-                    // 노선 상세 정보 조회 (캐시 사용)
-                    JsonNode routeDetail = routeDetailCache.get(routeId);
-                    if (routeDetail == null) {
-                        routeDetail = getBusRouteStationList(routeId);
-                        if (routeDetail != null) {
-                            routeDetailCache.put(routeId, routeDetail);
-                        }
-                    }
-                    
-                    // 현재 정류장의 다음 정류장 찾기 및 stationSeq 찾기
-                    String nextStationName = null;
-                    int currentStationSeq = -1;
+                    // 첫 번째 노선의 상세 정보 조회 (방면 정보 추출용)
+                    JsonNode routeDetail = getBusRouteStationList(routeId);
                     if (routeDetail != null && routeDetail.has("station")) {
                         JsonNode stationArray = routeDetail.get("station");
                         if (stationArray.isArray()) {
                             for (int i = 0; i < stationArray.size(); i++) {
                                 JsonNode routeStation = stationArray.get(i);
                                 if (routeStation.has("stationID") && routeStation.get("stationID").asInt() == stationId) {
-                                    // 현재 정류장의 stationSeq 저장
-                                    if (routeStation.has("stationSeq")) {
-                                        currentStationSeq = routeStation.get("stationSeq").asInt();
-                                    }
-                                    
                                     // 다음 정류장 확인
                                     if (i + 1 < stationArray.size()) {
                                         JsonNode nextStation = stationArray.get(i + 1);
                                         if (nextStation.has("stationName")) {
-                                            nextStationName = nextStation.get("stationName").asText();
-                                            // 다음 정류장 카운트 증가
+                                            String nextStationName = nextStation.get("stationName").asText();
                                             nextStationCount.put(nextStationName, 
                                                 nextStationCount.getOrDefault(nextStationName, 0) + 1);
                                         }
@@ -114,47 +101,12 @@ public class BusController {
                             }
                         }
                     }
-                    
-                    // 버스 도착 정보 조회 (stationSeq가 있는 경우에만)
-                    Integer locationNo1 = null;
-                    Integer predictTimeSec1 = null;
-                    if (currentStationSeq > 0) {
-                        JsonNode arrivalInfo = getBusArrivalItem(stationId, routeId, currentStationSeq);
-                        if (arrivalInfo != null) {
-                            if (arrivalInfo.has("locationNo1")) {
-                                locationNo1 = arrivalInfo.get("locationNo1").asInt();
-                            }
-                            if (arrivalInfo.has("predictTimeSec1")) {
-                                predictTimeSec1 = arrivalInfo.get("predictTimeSec1").asInt();
-                            }
-                        }
-                    }
-                    
-                    ObjectNode busObject = objectMapper.createObjectNode();
-                    busObject.put("busID", routeId);
-                    busObject.put("busNo", routeName);
-                    busObject.put("routeDestName", routeDestName);
-                    if (nextStationName != null) {
-                        busObject.put("nextStationName", nextStationName);
-                    }
-                    if (locationNo1 != null) {
-                        busObject.put("locationNo1", locationNo1);
-                    }
-                    if (predictTimeSec1 != null) {
-                        busObject.put("predictTimeSec1", predictTimeSec1);
-                    }
-                    
-                    if (routeDetail != null) {
-                        busObject.set("laneDetail", routeDetail);
-                    }
-                    
-                    busListArray.add(busObject);
                 }
                 
                 // 방면 정보 추출 (가장 많이 나타나는 다음 정류장명)
                 String direction = getMostFrequentNextStation(nextStationCount);
                 
-                // 정류장 정보 객체 생성
+                // 정류장 기본 정보 객체 생성
                 ObjectNode laneObject = objectMapper.createObjectNode();
                 laneObject.put("stationID", stationId);
                 laneObject.put("stationName", stationName);
@@ -164,7 +116,6 @@ public class BusController {
                 if (direction != null && !direction.isEmpty()) {
                     laneObject.put("direction", direction);
                 }
-                laneObject.set("busList", busListArray);
                 
                 laneArray.add(laneObject);
             }

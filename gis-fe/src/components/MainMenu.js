@@ -178,10 +178,6 @@ const MainMenu = ({ onMenuSelect }) => {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  // 네이버 클로바 OCR 설정
-  const CLOVA_OCR_SECRET = 'eFRUenNlWEhLdmJyQkhuTlBqWUFxZFRYT3NoWU5oSkY=';
-  const CLOVA_OCR_URL = 'https://xkrzt7gj72.apigw.ntruss.com/custom/v1/48680/c0040045314eaa9dd8625b3015fe86447f0cdb70ba931d7e1f6939e019330e58/general';
-
   // 카메라 시작
   const startCamera = async () => {
     try {
