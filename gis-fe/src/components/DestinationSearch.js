@@ -646,8 +646,7 @@ const DestinationSearch = ({ station, onBack, onBusSelect, selectedBusID, onStop
       }
     });
 
-    // 경유 정류장이 적은 순으로 정렬, 경유 정류장이 같은 경우 도착 시간이 짧은 것으로 먼저 정렬
-    // 운행 정보 없음은 맨 아래로
+    // 도착 시간 순으로 오름차순 정렬, 운행 정보 없음은 맨 뒤로
     results.sort((a, b) => {
       // 운행 정보 확인 함수
       const hasArrivalInfo = (result) => {
@@ -660,7 +659,7 @@ const DestinationSearch = ({ station, onBack, onBusSelect, selectedBusID, onStop
       const hasInfoA = hasArrivalInfo(a);
       const hasInfoB = hasArrivalInfo(b);
       
-      // 운행 정보가 있는 것들을 먼저 (운행 정보 없음은 맨 아래)
+      // 운행 정보가 있는 것들을 먼저 (운행 정보 없음은 맨 뒤)
       if (hasInfoA && !hasInfoB) {
         return -1;
       }
@@ -673,13 +672,7 @@ const DestinationSearch = ({ station, onBack, onBusSelect, selectedBusID, onStop
         return 0;
       }
       
-      // 둘 다 운행 정보가 있는 경우
-      // 1순위: 경유 정류장 개수 (적은 순)
-      if (a.stationCount !== b.stationCount) {
-        return a.stationCount - b.stationCount;
-      }
-      
-      // 2순위: 경유 정류장이 같은 경우 도착 시간 (짧은 순)
+      // 둘 다 운행 정보가 있는 경우: 도착 시간(predictTimeSec1) 오름차순 정렬
       const timeA = a.bus.predictTimeSec1;
       const timeB = b.bus.predictTimeSec1;
       
@@ -693,6 +686,20 @@ const DestinationSearch = ({ station, onBack, onBusSelect, selectedBusID, onStop
       }
       // B만 시간 정보가 있으면 B를 앞으로
       if (timeB !== null && timeB !== undefined) {
+        return 1;
+      }
+      // 둘 다 시간 정보가 없지만 locationNo1은 있는 경우, locationNo1 기준으로 정렬
+      const locationA = a.bus.locationNo1;
+      const locationB = b.bus.locationNo1;
+      if (locationA !== null && locationA !== undefined && locationB !== null && locationB !== undefined) {
+        return locationA - locationB;
+      }
+      // A만 locationNo1이 있으면 A를 앞으로
+      if (locationA !== null && locationA !== undefined) {
+        return -1;
+      }
+      // B만 locationNo1이 있으면 B를 앞으로
+      if (locationB !== null && locationB !== undefined) {
         return 1;
       }
       // 둘 다 시간 정보가 없으면 동일 순위로 유지
