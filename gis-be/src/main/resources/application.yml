@@ -1,16 +1,8 @@
 server:
-  port: 8443
-  ssl:
-    enabled: true
-    # 프로덕션: 환경 변수로 절대 경로 지정 (권장)
-    # Windows 예시: $env:SSL_CERTIFICATE_PATH="file:///C:/Users/lenovo/Desktop/study/project/gis/cert/fullchain.crt"
-    # Linux 예시: export SSL_CERTIFICATE_PATH="file:/etc/ssl/certs/fullchain.crt"
-    # 기본값: 프로젝트 루트의 cert 폴더 (상대 경로)
-    certificate: ${SSL_CERTIFICATE_PATH:file:../cert/fullchain.crt}
-    certificate-private-key: ${SSL_PRIVATE_KEY_PATH:file:../cert/private.key}
-  # HTTP를 HTTPS로 리다이렉트하기 위한 설정
-  http:
-    port: 8080
+  port: 8080
+  # Nginx가 443 포트에서 HTTPS를 처리하므로 Spring Boot는 HTTP로 내부 포트에서만 실행
+  # ssl:
+  #   enabled: false
 
 spring:
   datasource:

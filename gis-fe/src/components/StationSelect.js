@@ -140,18 +140,12 @@ const StationSelect = ({ station, onBack, onSelect }) => {
   const [error, setError] = useState(null);
   const [stationDetail, setStationDetail] = useState(null);
   
-  // 중복 호출 방지를 위한 ref
-  const isFetchingRef = useRef(false);
-  const abortControllerRef = useRef(null);
-  const lastStationIDRef = useRef(null);
-  const completedStationIDRef = useRef(null); // 완료된 stationID 추적
-  
   const stationName = station?.stationName || station?.name || '정류장명 없음';
   const direction = station?.direction || '';
 
   // 정류장 상세 정보 조회
   useEffect(() => {
-    let isMounted = true; // 컴포넌트 마운트 상태 추적
+    let isMounted = true;
     
     const fetchStationDetail = async () => {
       const stationID = station?.stationID;
@@ -161,51 +155,6 @@ const StationSelect = ({ station, onBack, onSelect }) => {
         }
         return;
       }
-
-      // 이미 완료된 stationID이고 stationDetail이 있으면 재사용
-      if (completedStationIDRef.current === stationID && stationDetail) {
-        setLoading(false);
-        isFetchingRef.current = false; // 조회 완료로 표시
-        return;
-      }
-      
-      // 같은 stationID를 이미 조회 중이면 중복 호출 방지
-      // 단, 이미 완료된 경우에는 loading 상태를 초기화하고 재사용
-      if (isFetchingRef.current && lastStationIDRef.current === stationID) {
-        // 이미 완료된 stationID인 경우 loading을 false로 설정하고 재사용
-        if (completedStationIDRef.current === stationID && stationDetail) {
-          setLoading(false);
-          isFetchingRef.current = false;
-          return;
-        }
-        console.log('이미 같은 정류장 정보를 조회 중입니다. 중복 호출을 방지합니다.');
-        return;
-      }
-
-      // 이미 busList가 있고 유효한 경우 API 호출 스킵
-      if (station?.busList && Array.isArray(station.busList) && station.busList.length > 0) {
-        console.log('이미 조회된 버스 노선 정보를 재사용합니다.');
-        // 기존 정보를 그대로 사용
-        if (isMounted) {
-          setStationDetail(station);
-          setLoading(false);
-        }
-        lastStationIDRef.current = stationID;
-        completedStationIDRef.current = stationID; // 완료된 stationID 기록
-        isFetchingRef.current = false; // 조회 완료로 표시
-        return;
-      }
-
-      // 이전 요청 취소 (같은 stationID가 아닌 경우에만)
-      if (abortControllerRef.current && lastStationIDRef.current !== stationID) {
-        abortControllerRef.current.abort();
-      }
-
-      // 새로운 AbortController 생성
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-      isFetchingRef.current = true;
-      lastStationIDRef.current = stationID;
 
       if (!isMounted) return;
       
@@ -217,9 +166,8 @@ const StationSelect = ({ station, onBack, onSelect }) => {
           params: {
             stationID: stationID,
           },
-          signal: abortController.signal,
         });
-
+   
         if (!isMounted) return;
 
         let data;
@@ -237,25 +185,24 @@ const StationSelect = ({ station, onBack, onSelect }) => {
         }
 
         if (!isMounted) return;
-
+        
         if (data && data.result) {
-          // 기본 정보와 상세 정보를 병합
           const mergedStation = {
             ...station,
             ...data.result,
+            busList: data.result.busList || [],
           };
-          setStationDetail(mergedStation);
-          completedStationIDRef.current = stationID; // 완료된 stationID 기록
+          if (isMounted) {
+            setStationDetail(mergedStation);
+            setLoading(false);
+          }
         } else {
-          setError('정류장 상세 정보를 찾을 수 없습니다.');
+          if (isMounted) {
+            setError('정류장 상세 정보를 찾을 수 없습니다.');
+            setLoading(false);
+          }
         }
       } catch (err) {
-        // AbortError는 무시 (요청이 취소된 경우)
-        if (err.name === 'AbortError' || err.code === 'ERR_CANCELED' || (err.message && err.message.includes('canceled'))) {
-          // 취소된 요청은 로그만 남기고 상태 업데이트 안 함
-          return;
-        }
-        
         if (!isMounted) return;
         
         console.error('정류장 상세 정보 조회 오류:', err);
@@ -266,22 +213,12 @@ const StationSelect = ({ station, onBack, onSelect }) => {
         } else {
           setError('정류장 정보를 가져오는 중 오류가 발생했습니다.');
         }
-      } finally {
-        if (isMounted) {
-          isFetchingRef.current = false;
-          // 현재 요청의 abortController인 경우에만 null로 설정
-          if (abortControllerRef.current === abortController) {
-            abortControllerRef.current = null;
-          }
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
     fetchStationDetail();
     
-    // cleanup 함수: 컴포넌트 언마운트 시 isMounted만 false로 설정
-    // 실제 요청 취소는 새로운 요청이 시작될 때 처리됨 (182-185줄)
     return () => {
       isMounted = false;
     };
@@ -291,7 +228,18 @@ const StationSelect = ({ station, onBack, onSelect }) => {
   const handleSelect = (type) => {
     // 상세 정보가 로드된 경우 상세 정보를 전달, 아니면 기본 정보만 전달
     const stationToSend = stationDetail || station;
-    onSelect(type, stationToSend);
+    console.log('StationSelect - handleSelect:', type);
+    console.log('StationSelect - stationDetail:', stationDetail);
+    console.log('StationSelect - station:', station);
+    console.log('StationSelect - stationToSend:', stationToSend);
+    console.log('StationSelect - stationToSend.busList:', stationToSend?.busList);
+    if (!stationToSend) {
+      console.error('정류장 정보가 없습니다.');
+      return;
+    }
+    if (onSelect) {
+      onSelect(type, stationToSend);
+    }
   };
 
   return (

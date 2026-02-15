@@ -393,6 +393,14 @@ const BusSelect = ({ station, onBack, onBusSelect, onStationUpdate, selectedBusI
   const stationName = station?.stationName || station?.name || '정류장명 없음';
   const direction = station?.direction || '';
 
+  useEffect(() => {
+    if (station?.busList && Array.isArray(station.busList) && station.busList.length > 0) {
+      setBusList(station.busList);
+    } else {
+      setBusList([]);
+    }
+  }, [station]);
+
   // 초를 분으로 변환하는 함수
   const formatTime = (seconds) => {
     if (seconds === null || seconds === undefined) return null;
@@ -427,6 +435,7 @@ const BusSelect = ({ station, onBack, onBusSelect, onStationUpdate, selectedBusI
       if (numA !== numB) return numA - numB;
       return a.busNo.localeCompare(b.busNo);
     });
+  console.log('BusSelect - uniqueBuses:', uniqueBuses, 'length:', uniqueBuses.length);
 
   const handleBusClick = (bus) => {
     // 이미 선택된 버스를 다시 클릭하면 알림 취소
