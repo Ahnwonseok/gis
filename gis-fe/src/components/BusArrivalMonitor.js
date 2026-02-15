@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import api from '../api/axiosInstance';
 import axios from 'axios';
@@ -160,7 +160,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
   };
 
   // 버스 도착 정보 조회 API 호출
-  const checkBusArrival = async () => {
+  const checkBusArrival = useCallback(async () => {
     const stationSeq = findCurrentStationSeq();
     
     const stationID = station?.stationID;
@@ -211,7 +211,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
       console.error('버스 도착 정보 조회 오류:', error);
       return null;
     }
-  };
+  }, [bus, station]);
 
   // 카메라 시작
   const startCamera = async () => {
@@ -341,7 +341,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
   };
 
   // 알림 표시 및 진동
-  const showArrivalNotification = () => {
+  const showArrivalNotification = useCallback(() => {
     if (hasNotifiedRef.current) return;
     
     hasNotifiedRef.current = true;
@@ -376,7 +376,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
     startCamera();
 
     // 알림은 카메라 모달이 닫힐 때까지 유지
-  };
+  }, [bus]);
 
   useEffect(() => {
     const initialPredictTime = bus.predictTimeSec1;
@@ -495,7 +495,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
         clearInterval(checkIntervalRef.current);
       }
     };
-  }, [bus, station]);
+  }, [bus, station, checkBusArrival, showArrivalNotification]);
 
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {

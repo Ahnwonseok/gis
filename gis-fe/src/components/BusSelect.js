@@ -269,13 +269,14 @@ const DialogMessage = styled.div`
   line-height: 1.6;
 `;
 
-const DialogBusInfo = styled.div`
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 15px;
-  padding: 20px;
-  margin-bottom: 30px;
-  text-align: center;
-`;
+// 사용되지 않는 styled component (향후 사용 예정)
+// const DialogBusInfo = styled.div`
+//   background: rgba(255, 255, 255, 0.2);
+//   border-radius: 15px;
+//   padding: 20px;
+//   margin-bottom: 30px;
+//   text-align: center;
+// `;
 
 const DialogBusNumber = styled.div`
   font-size: 2rem;
