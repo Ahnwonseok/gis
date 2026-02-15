@@ -211,7 +211,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
       console.error('버스 도착 정보 조회 오류:', error);
       return null;
     }
-  }, [bus, station]);
+  }, [bus, station, findCurrentStationSeq]);
 
   // 카메라 시작
   const startCamera = async () => {
