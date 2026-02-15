@@ -278,18 +278,19 @@ const DialogMessage = styled.div`
 //   text-align: center;
 // `;
 
-const DialogBusNumber = styled.div`
-  font-size: 2rem;
-  font-weight: bold;
-  color: white;
-  margin-bottom: 10px;
-`;
+// 사용되지 않는 styled components (향후 사용 예정)
+// const DialogBusNumber = styled.div`
+//   font-size: 2rem;
+//   font-weight: bold;
+//   color: white;
+//   margin-bottom: 10px;
+// `;
 
-const DialogBusArrivalInfo = styled.div`
-  font-size: 1.2rem;
-  color: white;
-  opacity: 0.9;
-`;
+// const DialogBusArrivalInfo = styled.div`
+//   font-size: 1.2rem;
+//   color: white;
+//   opacity: 0.9;
+// `;
 
 const DialogButtonContainer = styled.div`
   display: flex;

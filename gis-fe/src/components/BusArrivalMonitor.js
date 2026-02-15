@@ -142,7 +142,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
   const CLOVA_OCR_URL = 'https://xkrzt7gj72.apigw.ntruss.com/custom/v1/48680/c0040045314eaa9dd8625b3015fe86447f0cdb70ba931d7e1f6939e019330e58/general';
 
   // 현재 정류장의 stationSeq 찾기
-  const findCurrentStationSeq = () => {
+  const findCurrentStationSeq = useCallback(() => {
     if (!bus.laneDetail || !bus.laneDetail.station || !Array.isArray(bus.laneDetail.station)) {
       return null;
     }
@@ -157,7 +157,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
       }
     }
     return null;
-  };
+  }, [bus, station]);
 
   // 버스 도착 정보 조회 API 호출
   const checkBusArrival = useCallback(async () => {
@@ -495,7 +495,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
         clearInterval(checkIntervalRef.current);
       }
     };
-  }, [bus, station, checkBusArrival, showArrivalNotification]);
+  }, [bus, station, checkBusArrival, showArrivalNotification, findCurrentStationSeq]);
 
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {
