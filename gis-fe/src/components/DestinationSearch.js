@@ -326,26 +326,27 @@ const DialogMessage = styled.div`
   line-height: 1.6;
 `;
 
-const DialogBusInfo = styled.div`
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 15px;
-  padding: 20px;
-  margin-bottom: 30px;
-  text-align: center;
-`;
+// 사용되지 않는 styled components (향후 사용 예정)
+// const DialogBusInfo = styled.div`
+//   background: rgba(255, 255, 255, 0.2);
+//   border-radius: 15px;
+//   padding: 20px;
+//   margin-bottom: 30px;
+//   text-align: center;
+// `;
 
-const DialogBusNumber = styled.div`
-  font-size: 2rem;
-  font-weight: bold;
-  color: white;
-  margin-bottom: 10px;
-`;
+// const DialogBusNumber = styled.div`
+//   font-size: 2rem;
+//   font-weight: bold;
+//   color: white;
+//   margin-bottom: 10px;
+// `;
 
-const DialogBusArrivalInfo = styled.div`
-  font-size: 1.2rem;
-  color: white;
-  opacity: 0.9;
-`;
+// const DialogBusArrivalInfo = styled.div`
+//   font-size: 1.2rem;
+//   color: white;
+//   opacity: 0.9;
+// `;
 
 const DialogButtonContainer = styled.div`
   display: flex;
@@ -497,9 +498,9 @@ const DestinationSearch = ({ station, onBack, onBusSelect, selectedBusID, onStop
       
       // 출발 정류장과 도착 정류장 찾기 (stationSeq 사용)
       let departureSeq = -1;
-      let arrivalSeq = -1;
+      // let arrivalSeq = -1; // 사용되지 않음
       let departureStation = null;
-      let arrivalStation = null;
+      // let arrivalStation = null; // 사용되지 않음
 
       // 검색어 정규화 (공백 제거)
       const searchTerm = destination.trim();
@@ -596,7 +597,7 @@ const DestinationSearch = ({ station, onBack, onBusSelect, selectedBusID, onStop
           // 출발(13) → 회차점(21) → 회차 후 → 도착(22~41)
           else if (turningPointSeq !== -1 && departureSeq <= turningPointSeq && candidateArrivalSeq > turningPointSeq) {
             // 출발 정류장 → 회차점까지 + 회차점 이후 → 도착 정류장까지
-            const maxSeq = Math.max(...stations.map(s => s.stationSeq || 0));
+            // const maxSeq = Math.max(...stations.map(s => s.stationSeq || 0)); // 사용되지 않음
             // 정방향: 출발(13) → 회차점(21) = 21 - 13 = 8개
             // 역방향: 회차점 이후 시작 → 도착 = (도착 - 회차점) 개
             stationCount = (turningPointSeq - departureSeq) + (candidateArrivalSeq - turningPointSeq);

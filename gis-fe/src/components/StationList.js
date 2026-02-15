@@ -264,6 +264,9 @@ const StationList = ({ onBack, onStationSelect }) => {
               case err.TIMEOUT:
                 errorMessage = '위치 정보 요청 시간이 초과되었습니다. 다시 시도해주세요.';
                 break;
+              default:
+                errorMessage = '위치 정보를 가져올 수 없습니다.';
+                break;
             }
             reject(new Error(errorMessage));
           },
@@ -310,8 +313,8 @@ const StationList = ({ onBack, onStationSelect }) => {
     setStatusMessage('정류장을 검색하고 있습니다...');
 
     try {
-      // 현재 위치 가져오기
-      const location = await getCurrentLocation();
+      // 현재 위치 가져오기 (주석 처리됨 - 테스트용 고정 좌표 사용)
+      // const location = await getCurrentLocation();
       
       // 백엔드 API 호출 (AbortSignal 전달)
       const response = await api.get('/station', {
