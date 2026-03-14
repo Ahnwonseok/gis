@@ -319,13 +319,6 @@ const MainMenu = ({ onMenuSelect }) => {
           >
             마이페이지
           </MenuButton>
-          {/* 테스트용 버튼 - 나중에 삭제 */}
-          <MenuButton
-            onClick={handleTestOCR}
-            style={{ background: 'rgba(255, 193, 7, 0.8)' }}
-          >
-            [테스트] OCR 테스트
-          </MenuButton>
         </MenuButtonContainer>
       </MenuContainer>
 
