@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import api from '../api/axiosInstance';
-import axios from 'axios';
 
 const NotificationContainer = styled.div`
   position: fixed;
@@ -136,10 +135,6 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  
-  // 네이버 클로바 OCR 설정
-  const CLOVA_OCR_SECRET = 'eFRUenNlWEhLdmJyQkhuTlBqWUFxZFRYT3NoWU5oSkY=';
-  const CLOVA_OCR_URL = 'https://xkrzt7gj72.apigw.ntruss.com/custom/v1/48680/c0040045314eaa9dd8625b3015fe86447f0cdb70ba931d7e1f6939e019330e58/general';
 
   // 현재 정류장의 stationSeq 찾기
   const findCurrentStationSeq = useCallback(() => {
@@ -249,82 +244,106 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
 
-    // canvas를 base64로 변환
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-    const base64Data = imageData.split(',')[1]; // data:image/jpeg;base64, 제거
-
-    // OCR 호출
-    recognizeBusNumber(base64Data);
+    // canvas를 Blob으로 변환하여 OCR 호출
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        setOcrResult({ success: false, message: '이미지 변환 실패' });
+        return;
+      }
+      recognizeBusNumber(blob);
+    }, 'image/jpeg', 0.8);
   };
 
   // 네이버 클로바 OCR로 버스 번호 인식
-  const recognizeBusNumber = async (base64Image) => {
+  const recognizeBusNumber = async (blob) => {
     setIsProcessing(true);
     setOcrResult(null);
 
     try {
-      const response = await axios.post(
-        CLOVA_OCR_URL,
-        {
-          version: 'V2',
-          requestId: `bus-${Date.now()}`,
-          timestamp: Date.now(),
-          images: [
-            {
-              format: 'jpg',
-              name: 'bus-number',
-              data: base64Image,
-              url: null
-            }
-          ]
-        },
+      // multipart/form-data 형식으로 요청
+      const formData = new FormData();
+      
+      // message 필드에 JSON 데이터 추가
+      const requestJson = {
+        version: 'V2',
+        requestId: `bus-${Date.now()}`,
+        timestamp: Math.round(Date.now()),
+        images: [
+          {
+            format: 'jpg',
+            name: 'bus-number'
+          }
+        ]
+      };
+      
+      formData.append('message', JSON.stringify(requestJson));
+      formData.append('file', blob, 'bus-number.jpg');
+
+      // 백엔드 프록시를 통해 OCR API 호출 (CORS 문제 해결)
+      const response = await api.post(
+        '/ocr/recognize',
+        formData,
         {
           headers: {
-            'X-OCR-SECRET': CLOVA_OCR_SECRET,
-            'Content-Type': 'application/json'
+            'Content-Type': 'multipart/form-data'
           }
         }
       );
 
       console.log('OCR 응답:', response.data);
 
+      // 응답이 문자열인 경우 JSON 파싱
+      let ocrData;
+      try {
+        ocrData = typeof response.data === 'string' 
+          ? JSON.parse(response.data) 
+          : response.data;
+      } catch (parseError) {
+        console.error('JSON 파싱 오류:', parseError);
+        setOcrResult({ success: false, message: 'OCR 응답 파싱 오류가 발생했습니다.' });
+        return;
+      }
+
       // OCR 결과에서 텍스트 추출
-      if (response.data && response.data.images && response.data.images.length > 0) {
-        const imageResult = response.data.images[0];
-        if (imageResult.fields) {
-          // 모든 필드의 텍스트 추출
-          const allText = imageResult.fields
-            .map(field => field.inferText)
-            .join(' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-          console.log('인식된 텍스트:', allText);
-
-          // 버스 번호 추출 (숫자만 추출)
-          const busNumberMatch = allText.match(/\d+/);
-          if (busNumberMatch) {
-            const recognizedBusNo = busNumberMatch[0];
-            const selectedBusNo = bus.busNo.replace(/[^0-9]/g, ''); // 선택한 버스 번호에서 숫자만 추출
-
-            console.log('인식된 버스 번호:', recognizedBusNo, '선택한 버스 번호:', selectedBusNo);
-
-            if (recognizedBusNo === selectedBusNo) {
-              setOcrResult({ success: true, message: `✅ ${bus.busNo}번 버스 확인!` });
-              // 3초 후 카메라 닫기
-              setTimeout(() => {
-                stopCamera();
-                setShowCamera(false);
-                setShowNotification(false);
-                if (onClose) {
-                  onClose();
-                }
-              }, 3000);
-            } else {
-              setOcrResult({ success: false, message: `❌ 버스 번호 불일치 (인식: ${recognizedBusNo}번, 선택: ${bus.busNo}번)` });
+      if (ocrData && ocrData.images && ocrData.images.length > 0) {
+        const imageResult = ocrData.images[0];
+        if (imageResult.fields && imageResult.fields.length > 0) {
+          // 선택한 버스 번호에서 숫자만 추출
+          const selectedBusNo = bus.busNo.replace(/[^0-9]/g, '');
+          
+          // 각 필드의 inferText에서 숫자 추출
+          const recognizedBusNumbers = [];
+          imageResult.fields.forEach(field => {
+            if (field.inferText) {
+              const numbers = field.inferText.match(/\d+/g);
+              if (numbers) {
+                recognizedBusNumbers.push(...numbers);
+              }
             }
+          });
+
+          console.log('인식된 모든 숫자:', recognizedBusNumbers);
+          console.log('선택한 버스 번호:', selectedBusNo);
+
+          // 인식된 숫자 중 하나라도 선택한 버스 번호와 일치하는지 확인
+          const isMatch = recognizedBusNumbers.some(num => num === selectedBusNo);
+
+          if (isMatch) {
+            setOcrResult({ success: true, message: `✅ ${bus.busNo}번 버스 확인!` });
+            // 3초 후 카메라 닫기
+            setTimeout(() => {
+              stopCamera();
+              setShowCamera(false);
+              setShowNotification(false);
+              if (onClose) {
+                onClose();
+              }
+            }, 3000);
           } else {
-            setOcrResult({ success: false, message: '버스 번호를 인식할 수 없습니다.' });
+            const recognizedText = recognizedBusNumbers.length > 0 
+              ? recognizedBusNumbers.join(', ') 
+              : '없음';
+            setOcrResult({ success: false, message: `❌ 버스 번호 불일치 (인식: ${recognizedText}번, 선택: ${bus.busNo}번)` });
           }
         } else {
           setOcrResult({ success: false, message: '텍스트를 인식할 수 없습니다.' });
@@ -394,7 +413,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
       console.log('도착 시간 정보가 없어 주기적으로 확인합니다.');
       // 즉시 한 번 확인
       checkBusArrival().then(arrivalInfo => {
-        if (arrivalInfo && arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 60) {
+        if (arrivalInfo && arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 180) {
           showArrivalNotification();
         } else {
           // 주기적 확인 시작
@@ -404,7 +423,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
             const arrivalInfo = await checkBusArrival();
             if (arrivalInfo) {
               console.log('주기적 확인 - predictTimeSec1:', arrivalInfo.predictTimeSec1);
-              if (arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 60) {
+              if (arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 180) {
                 showArrivalNotification();
                 if (checkIntervalRef.current) {
                   clearInterval(checkIntervalRef.current);
@@ -430,17 +449,17 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
       };
     }
 
-    // 1분(60초) 전에 API 호출할 시간 계산 (밀리초)
-    // 예: predictTimeSec1이 120초(2분)이면, 60초 후에 API 호출
-    const checkTime = (initialPredictTime - 60) * 1000;
+    // 3분(180초) 전에 API 호출할 시간 계산 (밀리초)
+    // 예: predictTimeSec1이 240초(4분)이면, 180초 후에 API 호출
+    const checkTime = (initialPredictTime - 180) * 1000;
     
     console.log(`버스 도착 알림 설정: 초기 예상 시간 ${initialPredictTime}초, ${checkTime/1000}초 후 API 호출 예약`);
     
     if (checkTime <= 0) {
-      // 이미 1분 이내라면 바로 확인
-      console.log('이미 1분 이내이므로 즉시 확인');
+      // 이미 3분 이내라면 바로 확인
+      console.log('이미 3분 이내이므로 즉시 확인');
       checkBusArrival().then(arrivalInfo => {
-        if (arrivalInfo && arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 60) {
+        if (arrivalInfo && arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 180) {
           showArrivalNotification();
         }
       });
@@ -452,18 +471,18 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
         checkBusArrival().then(arrivalInfo => {
           if (arrivalInfo) {
             console.log('API 응답 - predictTimeSec1:', arrivalInfo.predictTimeSec1);
-            if (arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 60) {
+            if (arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 180) {
               showArrivalNotification();
             } else {
-              // 60초 초과면 주기적으로 확인 (30초마다)
+              // 180초 초과면 주기적으로 확인 (30초마다)
               // 단, predictTimeSec1이 0이거나 음수면 운행 종료로 간주하고 폴링 중지
               if (arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 > 0) {
-                console.log('60초 초과, 30초마다 주기적 확인 시작');
+                console.log('180초 초과, 30초마다 주기적 확인 시작');
                 checkIntervalRef.current = setInterval(async () => {
                   const arrivalInfo = await checkBusArrival();
                   if (arrivalInfo) {
                     console.log('주기적 확인 - predictTimeSec1:', arrivalInfo.predictTimeSec1);
-                    if (arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 60) {
+                    if (arrivalInfo.predictTimeSec1 && arrivalInfo.predictTimeSec1 <= 180) {
                       showArrivalNotification();
                       if (checkIntervalRef.current) {
                         clearInterval(checkIntervalRef.current);

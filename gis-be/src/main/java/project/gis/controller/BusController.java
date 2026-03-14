@@ -644,7 +644,7 @@ public class BusController {
     ) throws IOException {
         try {
             String clovaOcrUrl = "https://xkrzt7gj72.apigw.ntruss.com/custom/v1/48680/c0040045314eaa9dd8625b3015fe86447f0cdb70ba931d7e1f6939e019330e58/general";
-            String clovaOcrSecret = "eFRUenNlWEhLdmJyQkhuTlBqWUFxZFRYT3NoWU5oSkY=";
+            String clovaOcrSecret = "eFRUenNIWEhLdmJyQkhuTlBqWUFxZFRYT3NOWU50SkY=";
 
             // multipart/form-data 요청 생성
             java.net.URL url = new java.net.URL(clovaOcrUrl);
