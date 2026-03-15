@@ -211,41 +211,23 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
   // 카메라 시작
   const startCamera = async () => {
     try {
-      // 카메라 권한 확인 (모바일에서 중요)
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error('카메라 API를 사용할 수 없습니다.');
-        alert('이 브라우저는 카메라를 지원하지 않습니다.');
-        return false;
-      }
-
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment' // 후면 카메라 우선
-        } 
+        video: { facingMode: 'environment' } // 후면 카메라 우선
       });
-      
       streamRef.current = stream;
+      
+      // video 요소가 준비될 때까지 대기
+      if (!videoRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-      
-      console.log('카메라 시작 성공');
-      return true; // 성공
     } catch (error) {
       console.error('카메라 접근 오류:', error);
-      
-      // 에러 타입에 따른 메시지
-      let errorMessage = '카메라 접근 권한이 필요합니다.';
-      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        errorMessage = '카메라 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.';
-      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-        errorMessage = '카메라를 찾을 수 없습니다.';
-      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
-        errorMessage = '카메라가 다른 앱에서 사용 중일 수 있습니다.';
-      }
-      
-      alert(errorMessage);
-      return false; // 실패
+      alert('카메라 접근 권한이 필요합니다.');
+      setShowCamera(false);
     }
   };
 
@@ -415,16 +397,9 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
     }
 
     // 알림을 2초간 보여준 후 카메라 모달 열기
-    setTimeout(async () => {
-      // 카메라 시작 시도 (성공한 후에만 모달 표시)
-      const cameraSuccess = await startCamera();
-      if (cameraSuccess) {
-        // 카메라 시작 성공 시에만 모달 표시
-        setShowCamera(true);
-      } else {
-        // 카메라 실패 시 알림만 유지 (모달은 열지 않음)
-        console.log('카메라 접근 실패 - 알림만 유지');
-      }
+    setTimeout(() => {
+      setShowCamera(true);
+      startCamera();
     }, 2000);
   }, [bus]);
 
@@ -547,6 +522,7 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
     };
   }, [bus, station, checkBusArrival, showArrivalNotification, findCurrentStationSeq]);
 
+  
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {
     return () => {
@@ -558,12 +534,10 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
     <>
       {showNotification && !showCamera && (
         <NotificationContainer
-          onClick={async () => {
-            // 사용자 클릭 시 카메라 시작 (모바일에서 사용자 제스처 필요)
-            const cameraSuccess = await startCamera();
-            if (cameraSuccess) {
-              setShowCamera(true);
-            }
+          onClick={() => {
+            // 사용자 클릭 시 카메라 모달 열기 (모바일에서 사용자 제스처 필요)
+            setShowCamera(true);
+            startCamera();
           }}
           style={{ cursor: 'pointer' }}
         >
