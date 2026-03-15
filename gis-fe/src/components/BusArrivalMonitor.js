@@ -218,10 +218,14 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
+      return true; // 성공
     } catch (error) {
       console.error('카메라 접근 오류:', error);
-      alert('카메라 접근 권한이 필요합니다.');
+      // 카메라 접근 실패 시 모달 닫기
       setShowCamera(false);
+      setShowNotification(false);
+      alert('카메라 접근 권한이 필요합니다.');
+      return false; // 실패
     }
   };
 
@@ -390,11 +394,13 @@ const BusArrivalMonitor = ({ bus, station, onClose }) => {
       navigator.vibrate([200, 100, 200, 100, 200]);
     }
 
-    // 카메라 모달 열기
-    setShowCamera(true);
-    startCamera();
-
-    // 알림은 카메라 모달이 닫힐 때까지 유지
+    // 알림을 2초간 보여준 후 카메라 모달 열기
+    setTimeout(async () => {
+      // 카메라 모달 열기
+      setShowCamera(true);
+      // 카메라 시작 시도
+      await startCamera();
+    }, 2000);
   }, [bus]);
 
   useEffect(() => {
