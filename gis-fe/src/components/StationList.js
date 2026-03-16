@@ -280,6 +280,73 @@ const StationList = ({ onBack, onStationSelect }) => {
   //   });
   // };
 
+  const getCurrentLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('위치 정보를 지원하지 않는 브라우저입니다.'));
+        return;
+      }
+
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions
+          .query({ name: 'geolocation' })
+          .then((result) => {
+            if (result.state === 'denied') {
+              reject(
+                new Error(
+                  '위치 정보 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해주세요.',
+                ),
+              );
+              return;
+            }
+            requestLocation();
+          })
+          .catch(() => {
+            requestLocation();
+          });
+      } else {
+        requestLocation();
+      }
+
+      function requestLocation() {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            });
+          },
+          (err) => {
+            let errorMessage = '위치 정보를 가져올 수 없습니다.';
+            switch (err.code) {
+              case err.PERMISSION_DENIED:
+                errorMessage =
+                  '위치 정보 권한이 거부되었습니다.\n\n해결 방법:\n1. 브라우저 주소창 왼쪽 자물쇠 아이콘 클릭\n2. 위치 권한을 "허용"으로 변경\n3. 페이지를 새로고침한 후 다시 시도';
+                break;
+              case err.POSITION_UNAVAILABLE:
+                errorMessage =
+                  '위치 정보를 사용할 수 없습니다. GPS를 켜고 다시 시도해주세요.';
+                break;
+              case err.TIMEOUT:
+                errorMessage =
+                  '위치 정보 요청 시간이 초과되었습니다. 다시 시도해주세요.';
+                break;
+              default:
+                errorMessage = '위치 정보를 가져올 수 없습니다.';
+                break;
+            }
+            reject(new Error(errorMessage));
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0,
+          },
+        );
+      }
+    });
+  };
+
   // 정류장 조회
   const fetchStations = async (isRetry = false) => {
     // 이미 호출 중이면 중복 호출 방지
@@ -313,14 +380,12 @@ const StationList = ({ onBack, onStationSelect }) => {
     setStatusMessage('정류장을 검색하고 있습니다...');
 
     try {
-      // 현재 위치 가져오기 (주석 처리됨 - 테스트용 고정 좌표 사용)
-      // const location = await getCurrentLocation();
-      
-      // 백엔드 API 호출 (AbortSignal 전달)
+      const location = await getCurrentLocation();
+
       const response = await api.get('/station', {
         params: {
-          x: 126.933178,//location.lng, // 경도
-          y: 37.384311//location.lat, // 위도
+          x: location.lng,
+          y: location.lat,
         },
         signal: abortController.signal,
       });
