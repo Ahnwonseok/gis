@@ -1,12 +1,11 @@
-# 키오스크 프로젝트
+# 시각 장애인 버스 알리미
 <br>
 
 ## 사이트 주소
-http://ec2-52-79-203-45.ap-northeast-2.compute.amazonaws.com:3000
+https://gis-alpha.vercel.app/
 
 ## 프로젝트 소개
-교회 내 카페에서 수기로 주문을 관리하며 발생하는 주문 누락과 운영 비효율을 해결하기 위해<br>
-키오스크 기반 주문 관리 시스템을 설계하고 개발한 프로젝트입니다.
+시각에 불편이 있는 분이 버스를 탈 때 근처 정류장 찾기, 원하는 버스 도착 알림을 돕는 웹 앱입니다.
 
 ## 개발 환경
 
@@ -36,7 +35,7 @@ http://ec2-52-79-203-45.ap-northeast-2.compute.amazonaws.com:3000
 
 ## 아키텍처
 ### 운영환경 아키텍처
-<img src="https://github.com/user-attachments/assets/02361199-df76-471f-942b-4e1a7920cb9b" alt="kiosk" width="700" />
+<img width="700" alt="gis drawio" src="https://github.com/user-attachments/assets/0bcf65d4-3979-4de8-97b3-05c9eab3bcda" />
 <br clear="left">
 
 ### 개발환경 아키텍처
