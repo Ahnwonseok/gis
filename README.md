@@ -20,7 +20,7 @@ https://gis-alpha.vercel.app/
 ### Frontend
 |분류|기술스택|
 |------|---|
-|Language|<img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=TypeScript&logoColor=white">|
+|Language|  <img src="https://img.shields.io/badge/javascript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black">|
 |Framework|<img src="https://img.shields.io/badge/React 18.2-61DAFB?style=for-the-badge&logo=React&logoColor=black">|
 |HTTP Client|<img src="https://img.shields.io/badge/Axios-5A29E4?style=for-the-badge&logo=Axios&logoColor=white">|
 |Container|<img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=Docker&logoColor=white"> <img src="https://img.shields.io/badge/Node.js 20-339933?style=for-the-badge&logo=Node.js&logoColor=white">|
