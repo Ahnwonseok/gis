@@ -40,25 +40,25 @@ https://gis-alpha.vercel.app/
 
 ### 1. 근처 정류장 찾기
 - 현재 위치(GPS)로 가까운 정류장을 찾고, 거리·방면 정보를 제공합니다.
-  <img width="959" height="713" alt="image" src="https://github.com/user-attachments/assets/307cc5dc-69e8-43ef-bc54-68870739a19a" />
+  <img width="700" alt="image" src="https://github.com/user-attachments/assets/307cc5dc-69e8-43ef-bc54-68870739a19a" />
 <br clear="left"><br>
 
 ### 2. 정류장 버스 선택 
 - 그 정류장에 오는 버스 목록을 보고, 원하는 버스 번호를 선택할 수 있습니다.
-<img width="912" height="706" alt="image" src="https://github.com/user-attachments/assets/8d52ade2-dadb-43f5-a8c9-a1f94e565cc9" />
+<img width="700" alt="image" src="https://github.com/user-attachments/assets/8d52ade2-dadb-43f5-a8c9-a1f94e565cc9" />
 <br clear="left"><br>
 
 ### 3. 버스 도착 알림
 - 선택한 버스가 정류장에 도착하기 전/후로 알림을 받을 수 있습니다.
-<img width="913" height="698" alt="image" src="https://github.com/user-attachments/assets/9a825292-fab8-43dc-a537-dd926d75742a" />  
+<img width="700" alt="image" src="https://github.com/user-attachments/assets/9a825292-fab8-43dc-a537-dd926d75742a" />  
 <br clear="left"><br>
 
 ### 4. 도착지 검색
 - 목적지(정류장명)를 입력하면, 그곳으로 가는 노선과 근처 정류장을 찾아줍니다.
-<img width="912" height="808" alt="image" src="https://github.com/user-attachments/assets/1bb0c9e9-3cb5-42f4-b105-f9df3f278b13" />
+<img width="700" alt="image" src="https://github.com/user-attachments/assets/1bb0c9e9-3cb5-42f4-b105-f9df3f278b13" />
 <br clear="left"><br>
 
 ### 5. OCR 버스 확인
 - 카메라로 버스 번호판을 찍으면, 인식한 번호와 선택한 버스 번호가 같은지 확인해 줍니다(네이버 클로바 OCR 사용)
-<img width="606" height="711" alt="1234" src="https://github.com/user-attachments/assets/040d760c-e43e-4430-acf0-069b7b81d07b" />  
+<img width="700" alt="1234" src="https://github.com/user-attachments/assets/040d760c-e43e-4430-acf0-069b7b81d07b" />  
 <br clear="left"><br>
