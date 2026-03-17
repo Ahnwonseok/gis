@@ -60,7 +60,7 @@ https://gis-alpha.vercel.app/
 
 ### 5. OCR 버스 확인
 - 카메라로 버스 번호판을 찍으면, 인식한 번호와 선택한 버스 번호가 같은지 확인해 줍니다(네이버 클로바 OCR 사용)
-<img width="600" alt="1234" src="https://github.com/user-attachments/assets/040d760c-e43e-4430-acf0-069b7b81d07b" />  
+<img width="600" alt="image" src="https://github.com/user-attachments/assets/10a122e4-335d-4e33-b4f3-204f3d0da722" />
 <br clear="left"><br>
 
 ## 기술적 고민과 선택
