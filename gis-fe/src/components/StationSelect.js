@@ -15,6 +15,15 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
+  gap: 12px;
+
+  /* 모바일에서 Title이 버튼을 밀어내지 않도록 */
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    margin-bottom: 18px;
+    align-items: flex-start;
+  }
 `;
 
 const Title = styled.h1`
@@ -23,6 +32,14 @@ const Title = styled.h1`
   color: white;
   margin: 0;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  /* BackButton 옆에서 잘리지 않게 공간 양보 */
+  flex: 1;
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    font-size: 1.6rem;
+    line-height: 1.2;
+  }
 `;
 
 const BackButton = styled.button`
@@ -36,6 +53,9 @@ const BackButton = styled.button`
   cursor: pointer;
   transition: all 0.3s ease;
   min-height: 60px;
+  white-space: nowrap;
+  /* 모바일에서 버튼이 화면 밖으로 밀리지 않게 */
+  flex-shrink: 0;
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.3);
@@ -44,6 +64,12 @@ const BackButton = styled.button`
   &:focus {
     outline: 4px solid #ffd700;
     outline-offset: 4px;
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px 16px;
+    font-size: 1.05rem;
+    min-height: 50px;
   }
 `;
 

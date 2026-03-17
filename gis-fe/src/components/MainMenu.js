@@ -94,18 +94,25 @@ const MainMenu = ({ onMenuSelect }) => {
           >
             근처 정류장 찾기
           </MenuButton>
+          {/* 개발 전: 위치공유 */}
+          {/*
           <MenuButton
             onClick={() => handleMenuClick('위치공유')}
             aria-label="위치공유 메뉴"
           >
             위치공유
           </MenuButton>
+          */}
+
+          {/* 개발 전: 마이페이지 */}
+          {/*
           <MenuButton
             onClick={() => handleMenuClick('마이페이지')}
             aria-label="마이페이지 메뉴"
           >
             마이페이지
           </MenuButton>
+          */}
         </MenuButtonContainer>
       </MenuContainer>
     </>
