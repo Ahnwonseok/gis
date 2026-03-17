@@ -23,12 +23,10 @@ function App() {
         setCurrentView('stations');
         break;
       case '위치공유':
-        // 추후 구현
-        console.log('위치공유 메뉴 - 추후 구현');
+        alert('현재 개발 중입니다.');
         break;
       case '마이페이지':
-        // 추후 구현
-        console.log('마이페이지 메뉴 - 추후 구현');
+        alert('현재 개발 중입니다.');
         break;
       default:
         break;
