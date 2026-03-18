@@ -111,7 +111,7 @@ https://gis-alpha.vercel.app/
 - Docker Compose로 서비스 의존성과 구성을 한 번에 정의
 
 **선택 및 결과**
-- **Docker Compose로 PostgreSQL + Spring Boot + Nginx를 함께 구성**했습니다.
+- Docker Compose로 PostgreSQL + Spring Boot + Nginx를 함께 구성했습니다.
 
 ### 5. 접근성(스크린 리더) 고려
 **문제 상황**
