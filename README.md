@@ -85,12 +85,12 @@ https://gis-alpha.vercel.app/
 - 백엔드가 OCR 프록시 역할을 수행(시크릿은 백엔드에만 보관)
 
 **선택 및 결과**
-- **백엔드에 `/ocr/recognize` 엔드포인트를 두고**, Spring Boot가 클로바 OCR을 호출하도록 선택했습니다.
-- 프론트는 이미지 데이터를 백엔드로 보내고, OCR 결과만 받아 UI에서 검증(선택한 버스 번호와 비교)하도록 구성했습니다.
+- **백엔드에 엔드포인트를 두고**, Spring Boot가 클로바 OCR을 호출하도록 선택했습니다.
+- 프론트는 이미지 데이터를 백엔드로 보내고, OCR 결과만 받아 UI에서 검증하도록 구성했습니다.
 
 ### 3. GPS 기반 근처 정류장 조회를 위한 HTTPS 구성
 **문제 상황**
-- 웹에서 GPS 기반 위치(`navigator.geolocation`)는 보안 정책(HTTPS 등)의 영향을 받기 때문에 운영 환경에서 안정성이 중요합니다.
+- 웹에서 GPS 기반 위치는 보안 정책(HTTPS 등)의 영향을 받기 때문에 운영 환경에서 안정성이 중요합니다.
 - 사용자의 좌표를 받아 근처 정류장을 조회해야 합니다.
 
 **고려한 방안**
@@ -99,11 +99,11 @@ https://gis-alpha.vercel.app/
 
 **선택 및 결과**
 - **Nginx에서 SSL을 종료(HTTPS 제공)하고 Spring Boot로 프록시**하도록 선택했습니다.
-- `docker-compose.yml`에서 Nginx(80/443) → Spring Boot(8080) 구조로 배치해, 프론트가 안정적으로 GPS를 사용할 수 있게 했습니다.
+- 도커에서 Nginx(80/443) → Spring Boot(8080) 구조로 배치해, 프론트가 안정적으로 GPS를 사용할 수 있게 했습니다.
 
 ### 4. 배포/운영 일관성을 위한 Docker Compose 전략
 **문제 상황**
-- 개발 PC와 운영 환경 간 네트워크/설정 차이로 인해 “로컬에서는 되는데 운영에서는 안 됨” 문제가 발생할 수 있습니다.
+- 개발 PC와 운영 환경 간 네트워크/설정 차이로 인해 문제가 발생할 수 있습니다.
 - Spring Boot, DB, Nginx를 함께 안정적으로 기동/재시작해야 합니다.
 
 **고려한 방안**
@@ -112,7 +112,6 @@ https://gis-alpha.vercel.app/
 
 **선택 및 결과**
 - **Docker Compose로 PostgreSQL + Spring Boot + Nginx를 함께 구성**했습니다.
-- DB healthcheck 이후 Spring Boot 기동을 진행하도록 `depends_on`을 구성해 초기 실패를 줄였습니다.
 
 ### 5. 접근성(스크린 리더) 고려
 **문제 상황**
@@ -123,4 +122,4 @@ https://gis-alpha.vercel.app/
 - 스크린 리더 친화적으로 `aria-label`, `aria-live`, 역할(role) 속성을 체계적으로 적용
 
 **선택 및 결과**
-- 검색/오류/결과 상태를 `aria-live`로 전달하고 주요 UI에는 `aria-label`을 적용해 **읽기 흐름을 끊지 않도록** 설계했습니다.
+- 검색/오류/결과 상태를 `aria-live`로 전달하고 주요 UI에는 `aria-label`을 적용해 청각도 잘 사용할 수 있게 설계했습니다.
