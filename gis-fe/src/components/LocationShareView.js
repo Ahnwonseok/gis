@@ -111,6 +111,74 @@ const BackBtn = styled.button`
   }
 `;
 
+const MapControlPanel = styled.div`
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: calc(100% - 120px);
+`;
+
+const MapTypeRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+`;
+
+const MapTypeBtn = styled.button`
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+  background: ${(p) => (p.$active ? '#667eea' : '#f8f9fa')};
+  color: ${(p) => (p.$active ? 'white' : '#333')};
+  transition: background 0.15s ease;
+  &:hover {
+    background: ${(p) => (p.$active ? '#5a6fd6' : '#e9ecef')};
+  }
+`;
+
+const ZoomStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+`;
+
+const ZoomBtn = styled.button`
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.96);
+  border: none;
+  border-bottom: 1px solid #dee2e6;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &:last-child {
+    border-bottom: none;
+  }
+  &:hover {
+    background: #e9ecef;
+  }
+`;
+
 const PARTICIPANT_STORAGE_KEY = 'gis-ls-participant-id';
 
 function newUuid() {
@@ -160,6 +228,63 @@ const LocationShareView = ({ onBack, watchSessionId, menuRoomId, onMenuRoomLeave
   const [lastPollAt, setLastPollAt] = useState(null);
   const [copyDone, setCopyDone] = useState(false);
   const [othersCount, setOthersCount] = useState(0);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapType, setMapType] = useState('ROADMAP');
+
+  const getMapTypeString = useCallback((mapTypeId) => {
+    const kakao = window.kakao?.maps;
+    if (!kakao) return 'ROADMAP';
+    const mapTypes = {
+      [kakao.MapTypeId.ROADMAP]: 'ROADMAP',
+      [kakao.MapTypeId.SKYVIEW]: 'SKYVIEW',
+      [kakao.MapTypeId.HYBRID]: 'HYBRID',
+    };
+    return mapTypes[mapTypeId] || 'ROADMAP';
+  }, []);
+
+  const changeMapType = useCallback(
+    (maptype) => {
+      const map = mapRef.current;
+      const kakao = window.kakao?.maps;
+      if (!map || !kakao) return;
+      const requested =
+        maptype === 'roadmap' ? 'ROADMAP' : maptype === 'skyview' ? 'SKYVIEW' : 'HYBRID';
+      if (getMapTypeString(map.getMapTypeId()) === requested) return;
+      const center = map.getCenter();
+      const level = map.getLevel();
+      if (maptype === 'roadmap') {
+        map.setMapTypeId(kakao.MapTypeId.ROADMAP);
+        setMapType('ROADMAP');
+      } else if (maptype === 'skyview') {
+        map.setMapTypeId(kakao.MapTypeId.SKYVIEW);
+        setMapType('SKYVIEW');
+      } else {
+        map.setMapTypeId(kakao.MapTypeId.HYBRID);
+        setMapType('HYBRID');
+      }
+      map.setCenter(center);
+      map.setLevel(level);
+    },
+    [getMapTypeString],
+  );
+
+  const zoomIn = useCallback(() => {
+    const map = mapRef.current;
+    const kakao = window.kakao?.maps;
+    if (!map || !kakao) return;
+    const typeId = map.getMapTypeId();
+    map.setLevel(map.getLevel() - 1);
+    map.setMapTypeId(typeId);
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    const map = mapRef.current;
+    const kakao = window.kakao?.maps;
+    if (!map || !kakao) return;
+    const typeId = map.getMapTypeId();
+    map.setLevel(map.getLevel() + 1);
+    map.setMapTypeId(typeId);
+  }, []);
 
   useEffect(() => {
     if (watchSessionId) {
@@ -257,16 +382,21 @@ const LocationShareView = ({ onBack, watchSessionId, menuRoomId, onMenuRoomLeave
         return;
       }
       const center = new window.kakao.maps.LatLng(37.5665, 126.978);
-      mapRef.current = new window.kakao.maps.Map(el, { center, level: 5 });
+      const map = new window.kakao.maps.Map(el, { center, level: 5 });
+      if (cancelled) return;
+      mapRef.current = map;
+      setMapType(getMapTypeString(map.getMapTypeId()));
+      setMapReady(true);
     };
     boot();
     return () => {
       cancelled = true;
+      setMapReady(false);
       Object.values(markersRef.current).forEach((m) => m.setMap(null));
       markersRef.current = {};
       mapRef.current = null;
     };
-  }, []);
+  }, [getMapTypeString]);
 
   useEffect(() => {
     if (!roomActive || !roomId || !participantId) return undefined;
@@ -448,6 +578,44 @@ const LocationShareView = ({ onBack, watchSessionId, menuRoomId, onMenuRoomLeave
         <BackBtn type="button" onClick={onBack} aria-label="메인으로">
           ← 메인
         </BackBtn>
+        {mapReady && (
+          <MapControlPanel>
+            <MapTypeRow role="toolbar" aria-label="지도 유형">
+              <MapTypeBtn
+                type="button"
+                $active={mapType === 'ROADMAP'}
+                onClick={() => changeMapType('roadmap')}
+                aria-pressed={mapType === 'ROADMAP'}
+              >
+                일반지도
+              </MapTypeBtn>
+              <MapTypeBtn
+                type="button"
+                $active={mapType === 'HYBRID'}
+                onClick={() => changeMapType('hybrid')}
+                aria-pressed={mapType === 'HYBRID'}
+              >
+                하이브리드
+              </MapTypeBtn>
+              <MapTypeBtn
+                type="button"
+                $active={mapType === 'SKYVIEW'}
+                onClick={() => changeMapType('skyview')}
+                aria-pressed={mapType === 'SKYVIEW'}
+              >
+                항공지도
+              </MapTypeBtn>
+            </MapTypeRow>
+            <ZoomStack>
+              <ZoomBtn type="button" onClick={zoomIn} aria-label="지도 확대">
+                +
+              </ZoomBtn>
+              <ZoomBtn type="button" onClick={zoomOut} aria-label="지도 축소">
+                −
+              </ZoomBtn>
+            </ZoomStack>
+          </MapControlPanel>
+        )}
         <MapDiv id="kakao-map-location-share" />
       </MapArea>
     </Wrap>
