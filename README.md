@@ -33,7 +33,7 @@ https://gis-alpha.vercel.app/
 
 ## 아키텍처
 ### 시스템 아키텍처
-<img width="600" alt="gis drawio" src="https://github.com/user-attachments/assets/0bcf65d4-3979-4de8-97b3-05c9eab3bcda" />
+<img width="600" alt="gis drawio (1)" src="https://github.com/user-attachments/assets/c10c3eb5-f1c6-47d0-a761-347defc99628" />
 <br clear="left">
 
 ## 주요 기능
