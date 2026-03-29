@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import MainMenu from './components/MainMenu';
 import KakaoMap from './components/KakaoMap';
+import LocationShareView from './components/LocationShareView';
 import StationList from './components/StationList';
 import StationSelect from './components/StationSelect';
 import BusSelect from './components/BusSelect';
@@ -12,10 +13,20 @@ import BusArrivalMonitor from './components/BusArrivalMonitor';
 // 일단 App.js에서도 별도로 관리하되, StationSelect에서 캐시를 사용하도록 함
 
 function App() {
-  const [currentView, setCurrentView] = useState('main'); // 'main', 'stations', 'stationSelect', 'busSelect', 'destinationSearch', 'map'
+  const [currentView, setCurrentView] = useState('main'); // 'main', 'stations', 'stationSelect', 'busSelect', 'destinationSearch', 'map', 'locationShare'
   const [selectedStation, setSelectedStation] = useState(null);
   const [selectedBus, setSelectedBus] = useState(null); // 선택된 버스 정보
   const [isMonitoring, setIsMonitoring] = useState(false); // 알림 모니터링 상태
+  const [locationShareWatchId, setLocationShareWatchId] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const share = params.get('share');
+    if (share) {
+      setLocationShareWatchId(share);
+      setCurrentView('locationShare');
+    }
+  }, []);
 
   const handleMenuSelect = (menu) => {
     switch(menu) {
@@ -23,7 +34,8 @@ function App() {
         setCurrentView('stations');
         break;
       case '위치공유':
-        alert('현재 개발 중입니다.');
+        setLocationShareWatchId(null);
+        setCurrentView('locationShare');
         break;
       case '마이페이지':
         alert('현재 개발 중입니다.');
@@ -33,9 +45,24 @@ function App() {
     }
   };
 
+  const clearShareQuery = useCallback(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('share')) {
+      url.searchParams.delete('share');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+    setLocationShareWatchId(null);
+  }, []);
+
   const handleBackToMain = () => {
     setCurrentView('main');
     setSelectedStation(null);
+    clearShareQuery();
+  };
+
+  const handleBackFromLocationShare = () => {
+    setCurrentView('main');
+    clearShareQuery();
   };
 
   const handleStationSelect = (station) => {
@@ -92,6 +119,12 @@ function App() {
     <div>
       {currentView === 'main' && (
         <MainMenu onMenuSelect={handleMenuSelect} />
+      )}
+      {currentView === 'locationShare' && (
+        <LocationShareView
+          onBack={handleBackFromLocationShare}
+          watchSessionId={locationShareWatchId}
+        />
       )}
       {currentView === 'stations' && (
         <StationList 

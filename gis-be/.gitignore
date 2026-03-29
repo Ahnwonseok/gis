@@ -36,6 +36,9 @@ out/
 ### VS Code ###
 .vscode/
 
+### 로컬 DB 시크릿 — 커밋하지 않음 ###
+src/main/resources/application-secret.yml
+
 ### SSL Certificates ###
 *.crt
 *.key

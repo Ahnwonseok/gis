@@ -230,7 +230,8 @@ const ScreenReaderOnly = styled.div`
 const StationList = ({ onBack, onStationSelect }) => {
   // 캐시된 정류장 목록이 있으면 초기값으로 사용
   const [stations, setStations] = useState(cachedStations);
-  const [loading, setLoading] = useState(false);
+  // 캐시 없이 마운트 시 곧바로 조회하므로, 첫 페인트부터 로딩 문구만 보이게 함
+  const [loading, setLoading] = useState(() => cachedStations.length === 0);
   const [error, setError] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false); // 검색 성공 여부 추적
@@ -242,6 +243,8 @@ const StationList = ({ onBack, onStationSelect }) => {
   // 중복 호출 방지를 위한 ref
   const isFetchingRef = useRef(false);
   const abortControllerRef = useRef(null);
+  // Strict Mode 이중 마운트 등으로 이전 요청의 finally가 늦게 도는 경우 무시
+  const fetchGenerationRef = useRef(0);
 
   // 현재 위치 가져오기 (주석 처리됨 - 테스트용 고정 좌표 사용)
   // const getCurrentLocation = () => {
@@ -393,6 +396,7 @@ const StationList = ({ onBack, onStationSelect }) => {
     }
 
     // 새로운 AbortController 생성
+    const myGeneration = ++fetchGenerationRef.current;
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     isFetchingRef.current = true;
@@ -490,10 +494,15 @@ const StationList = ({ onBack, onStationSelect }) => {
         console.error('Error fetching stations:', err);
       }
     } finally {
-      // AbortError가 아닌 경우에만 상태 초기화
-      if (!abortControllerRef.current || abortControllerRef.current.signal.aborted === false) {
-        isFetchingRef.current = false;
+      if (myGeneration !== fetchGenerationRef.current) {
+        return;
+      }
+      const aborted = abortController.signal.aborted;
+      if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
+      }
+      isFetchingRef.current = false;
+      if (!aborted) {
         setLoading(false);
       }
     }
@@ -619,12 +628,6 @@ const StationList = ({ onBack, onStationSelect }) => {
             );
           })}
         </StationListContainer>
-      )}
-
-      {!loading && stations.length === 0 && !error && !locationError && (
-        <LoadingMessage>
-          위 버튼을 눌러 근처 정류장을 찾아주세요.
-        </LoadingMessage>
       )}
     </Container>
   );
