@@ -69,7 +69,7 @@ https://gis-alpha.vercel.app/
 - 메인 메뉴에서 들어가면 **방이 바로 생성**되고, **링크 복사**로 상대를 초대할 수 있습니다.
 - 브라우저 **Geolocation**으로 내 위치를 주기적으로 서버에 반영하고, **폴링**으로 참가자 전원의 최신 좌표를 가져옵니다.
 - 지도에서는 **나(별 마커)와 다른 참가자(빨간 마커)로** 구분하고, **나가기** 시 서버에서 해당 참가자의 핀을 제거합니다.
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/53d3da11-8c35-46c4-bac3-39e4ea4018bc" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/ca40a293-2b20-4e62-91af-521f7e3b855f" />
 <br clear="left"><br>
 
 ### 7. 마이페이지 · 즐겨찾기 정류장
