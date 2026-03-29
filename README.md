@@ -74,7 +74,8 @@ https://gis-alpha.vercel.app/
 
 ### 7. 마이페이지 · 즐겨찾기 정류장
 - 자주 쓰는 **정류장을 즐겨찾기**에 저장해 두었다가 **마이페이지**에서 목록으로 확인·삭제할 수 있습니다.
-<img width="300" alt="image" src="https://github.com/user-attachments/assets/68c3ead1-db3b-45ce-9b3c-f9366f565afd" />
+<img width="400" alt="image" src="https://github.com/user-attachments/assets/68c3ead1-db3b-45ce-9b3c-f9366f565afd" />
+<br clear="left"><br>
 - 정류장 상세 화면에서 즐겨찾기 추가 후, 마이페이지에서 해당 정류장을 누르면 **버스/도착지 흐름으로** 바로 이어질 수 있습니다.
 - 로그인 없이 **브라우저 로컬 저장소(localStorage)**에만 보관하므로, 기기·브라우저마다 목록이 독립적입니다.
 <img width="500" alt="image" src="https://github.com/user-attachments/assets/0fd21e0d-116c-4832-ac20-8586590964ce" />
