@@ -72,6 +72,15 @@ const ErrorText = styled.p`
   color: #ffdede;
 `;
 
+const Legend = styled.div`
+  margin-top: 8px;
+  font-size: 0.78rem;
+  opacity: 0.9;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+`;
+
 const MapArea = styled.div`
   flex: 1;
   min-height: 0;
@@ -102,7 +111,9 @@ const BackBtn = styled.button`
   }
 `;
 
-function newSessionId() {
+const PARTICIPANT_STORAGE_KEY = 'gis-ls-participant-id';
+
+function newUuid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
@@ -113,31 +124,102 @@ function newSessionId() {
   });
 }
 
+function getOrCreateParticipantId() {
+  try {
+    let id = localStorage.getItem(PARTICIPANT_STORAGE_KEY);
+    if (!id) {
+      id = newUuid();
+      localStorage.setItem(PARTICIPANT_STORAGE_KEY, id);
+    }
+    return id;
+  } catch {
+    return newUuid();
+  }
+}
+
 /**
- * 카카오 지도 + 브라우저 Geolocation.
- * - 공유하기: 내 위치를 주기적으로 서버에 전송하고, 링크로 다른 사람이 같은 지도에서 마커를 봅니다.
- * - 보기: watchSessionId가 있으면 폴링으로 상대 마커만 표시합니다.
+ * 양방향 실시간 위치: 같은 방(room) 참가자 전원이 위치를 올리고, 서버에서 모두의 좌표를 받아 마커 표시.
  */
 const LocationShareView = ({ onBack, watchSessionId }) => {
-  const isWatcher = Boolean(watchSessionId);
-  const mapRef = useRef(null);
-  const markerRef = useRef(null);
-  const lastPosRef = useRef(null);
+  const [participantId] = useState(() => getOrCreateParticipantId());
+  const [roomId, setRoomId] = useState(null);
+  const [roomActive, setRoomActive] = useState(false);
 
-  const [sharing, setSharing] = useState(false);
-  const [sessionId, setSessionId] = useState(null);
+  const mapRef = useRef(null);
+  const markersRef = useRef({});
+  const lastPosRef = useRef(null);
+  const lastParticipantsRef = useRef({});
+
   const [geoError, setGeoError] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [lastSentAt, setLastSentAt] = useState(null);
-  const [lastRemoteAt, setLastRemoteAt] = useState(null);
+  const [lastPollAt, setLastPollAt] = useState(null);
   const [copyDone, setCopyDone] = useState(false);
-  const [watchGone, setWatchGone] = useState(false);
+  const [othersCount, setOthersCount] = useState(0);
 
-  const moveMarker = useCallback((lat, lng) => {
-    if (!window.kakao?.maps || !mapRef.current || !markerRef.current) return;
-    const pos = new window.kakao.maps.LatLng(lat, lng);
-    markerRef.current.setPosition(pos);
-    mapRef.current.setCenter(pos);
+  useEffect(() => {
+    if (watchSessionId) {
+      setRoomId(watchSessionId);
+      setRoomActive(true);
+    }
+  }, [watchSessionId]);
+
+  const applyParticipantsOnMap = useCallback((participants, myPid) => {
+    const kakao = window.kakao?.maps;
+    if (!kakao || !mapRef.current || !participants) return;
+
+    const map = mapRef.current;
+    const markers = markersRef.current;
+    const seen = new Set();
+    const bounds = new kakao.LatLngBounds();
+    let n = 0;
+
+    const starSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png';
+    const redSrc = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png';
+    const size = new kakao.Size(24, 35);
+    const point = new kakao.Point(12, 35);
+
+    Object.entries(participants).forEach(([pid, dto]) => {
+      if (!dto || typeof dto.latitude !== 'number' || typeof dto.longitude !== 'number') return;
+      seen.add(pid);
+      const pos = new kakao.LatLng(dto.latitude, dto.longitude);
+      bounds.extend(pos);
+      n += 1;
+      let m = markers[pid];
+      if (!m) {
+        const isMe = pid === myPid;
+        const img = new kakao.MarkerImage(
+          isMe ? starSrc : redSrc,
+          size,
+          { offset: point },
+        );
+        m = new kakao.Marker({ position: pos, map, image: img });
+        markers[pid] = m;
+      } else {
+        m.setPosition(pos);
+      }
+    });
+
+    Object.keys(markers).forEach((pid) => {
+      if (!seen.has(pid)) {
+        markers[pid].setMap(null);
+        delete markers[pid];
+      }
+    });
+
+    if (n >= 2) {
+      map.setBounds(bounds);
+    } else if (n === 1) {
+      const [dto] = Object.values(participants).filter(
+        (d) => d && typeof d.latitude === 'number',
+      );
+      if (dto) {
+        map.setCenter(new kakao.LatLng(dto.latitude, dto.longitude));
+      }
+    }
+
+    const otherIds = Object.keys(participants).filter((id) => id !== myPid);
+    setOthersCount(otherIds.length);
   }, []);
 
   useEffect(() => {
@@ -154,30 +236,27 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
         return;
       }
       const center = new window.kakao.maps.LatLng(37.5665, 126.978);
-      const map = new window.kakao.maps.Map(el, { center, level: 5 });
-      const marker = new window.kakao.maps.Marker({ position: center, map });
-      mapRef.current = map;
-      markerRef.current = marker;
+      mapRef.current = new window.kakao.maps.Map(el, { center, level: 5 });
     };
     boot();
     return () => {
       cancelled = true;
-      if (markerRef.current) {
-        markerRef.current.setMap(null);
-        markerRef.current = null;
-      }
+      Object.values(markersRef.current).forEach((m) => m.setMap(null));
+      markersRef.current = {};
       mapRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (isWatcher || !sharing || !sessionId) return undefined;
+    if (!roomActive || !roomId || !participantId) return undefined;
     if (!navigator.geolocation) {
       setGeoError('이 브라우저는 위치 정보를 지원하지 않습니다.');
       return undefined;
     }
     setGeoError(null);
     setApiError(null);
+    lastPosRef.current = null;
+
     const opts = { enableHighAccuracy: true, timeout: 20000, maximumAge: 3000 };
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
@@ -186,18 +265,28 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
         };
-        moveMarker(pos.coords.latitude, pos.coords.longitude);
+        const merged = {
+          ...lastParticipantsRef.current,
+          [participantId]: {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            updatedAt: Date.now(),
+          },
+        };
+        applyParticipantsOnMap(merged, participantId);
       },
       (err) => {
         setGeoError(err.message || '위치 권한을 허용해 주세요.');
       },
-      opts
+      opts,
     );
+
     const intervalId = setInterval(async () => {
       const p = lastPosRef.current;
       if (!p) return;
       try {
-        await api.post(`/share/${sessionId}`, {
+        await api.post(`/share/${roomId}/position`, {
+          participantId,
           latitude: p.lat,
           longitude: p.lng,
           accuracy: p.accuracy,
@@ -205,58 +294,68 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
         setLastSentAt(Date.now());
         setApiError(null);
       } catch (e) {
-        setApiError(e.response?.data?.message || e.message || '서버 전송 실패');
+        if (e.response?.status === 409) {
+          setApiError('참가 인원이 가득 찼습니다. 새 방을 만들어 주세요.');
+        } else {
+          setApiError(e.response?.data?.message || e.message || '서버 전송 실패');
+        }
       }
     }, 3000);
+
     return () => {
       navigator.geolocation.clearWatch(watchId);
       clearInterval(intervalId);
     };
-  }, [isWatcher, sharing, sessionId, moveMarker]);
+  }, [roomActive, roomId, participantId, applyParticipantsOnMap]);
 
   useEffect(() => {
-    if (!isWatcher || !watchSessionId) return undefined;
-    setWatchGone(false);
-    setApiError(null);
+    if (!roomActive || !roomId || !participantId) return undefined;
+
     const poll = async () => {
       try {
-        const { data } = await api.get(`/share/${watchSessionId}`);
-        moveMarker(data.latitude, data.longitude);
-        setLastRemoteAt(data.updatedAt || null);
-        setWatchGone(false);
+        const { data } = await api.get(`/share/${roomId}/participants`);
+        const list = data?.participants || {};
+        lastParticipantsRef.current = list;
+        applyParticipantsOnMap(list, participantId);
+        setLastPollAt(Date.now());
+        setApiError(null);
       } catch (e) {
-        if (e.response?.status === 404) {
-          setWatchGone(true);
-        } else if (e.response?.status === 400) {
+        if (e.response?.status === 400) {
           setApiError('잘못된 공유 링크입니다.');
         } else {
           setApiError(e.message || '불러오기 실패');
         }
       }
     };
+
     poll();
     const intervalId = setInterval(poll, 2500);
     return () => clearInterval(intervalId);
-  }, [isWatcher, watchSessionId, moveMarker]);
+  }, [roomActive, roomId, participantId, applyParticipantsOnMap]);
 
   const startShare = () => {
     setGeoError(null);
     setApiError(null);
-    setSessionId(newSessionId());
-    setSharing(true);
+    setRoomId(newUuid());
+    setRoomActive(true);
     lastPosRef.current = null;
   };
 
   const stopShare = () => {
-    setSharing(false);
-    setSessionId(null);
+    setRoomActive(false);
+    setRoomId(null);
     lastPosRef.current = null;
     setLastSentAt(null);
+    setLastPollAt(null);
+    setOthersCount(0);
+    lastParticipantsRef.current = {};
+    Object.values(markersRef.current).forEach((m) => m.setMap(null));
+    markersRef.current = {};
   };
 
   const copyLink = async () => {
-    if (!sessionId) return;
-    const url = `${window.location.origin}${window.location.pathname}?share=${encodeURIComponent(sessionId)}`;
+    if (!roomId) return;
+    const url = `${window.location.origin}${window.location.pathname}?share=${encodeURIComponent(roomId)}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopyDone(true);
@@ -267,52 +366,55 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
   };
 
   const secure = typeof window !== 'undefined' && window.isSecureContext;
+  const joinedByLink = Boolean(watchSessionId);
 
   return (
     <Wrap>
       <Toolbar>
-        <Title>{isWatcher ? '실시간 위치 (보기)' : '실시간 위치 공유'}</Title>
-        {!isWatcher && (
-          <Hint>
-            공유 시작 후 링크를 주면 상대방이 카카오 지도에서 내 위치를 볼 수 있습니다. 세션은 약 30분 후 만료됩니다.
-          </Hint>
-        )}
-        {isWatcher && (
-          <Hint>상대가 공유 중일 때만 마커가 갱신됩니다. HTTPS 환경에서 사용하세요.</Hint>
+        <Title>실시간 위치 공유 (양방향)</Title>
+        <Hint>
+          같은 링크로 들어온 사람 모두 위치가 지도에 표시됩니다. 별 마커는 내 위치, 빨간 마커는 상대입니다.
+          방은 약 30분간 유지됩니다 (마지막 전송 시 갱신).
+        </Hint>
+        {joinedByLink && roomActive && (
+          <Hint>링크로 참여 중입니다. 위치 권한을 허용하면 상대와 서로 볼 수 있습니다.</Hint>
         )}
         {!secure && <ErrorText>위치 공유는 HTTPS(또는 localhost)에서만 동작합니다.</ErrorText>}
         {geoError && <ErrorText>{geoError}</ErrorText>}
         {apiError && <ErrorText>{apiError}</ErrorText>}
-        {watchGone && <ErrorText>공유가 끊겼거나 만료되었습니다.</ErrorText>}
 
-        {!isWatcher && (
+        {!roomActive && (
           <ToolbarRow>
-            {!sharing && (
-              <Btn type="button" onClick={startShare} disabled={!secure}>
-                공유 시작
-              </Btn>
-            )}
-            {sharing && sessionId && (
-              <>
-                <Btn type="button" onClick={copyLink}>
-                  {copyDone ? '복사됨' : '링크 복사'}
-                </Btn>
-                <BtnGhost type="button" onClick={stopShare}>
-                  공유 중지
-                </BtnGhost>
-                {lastSentAt && (
-                  <Hint style={{ marginTop: 0, width: '100%' }}>
-                    마지막 전송: {new Date(lastSentAt).toLocaleTimeString('ko-KR')}
-                  </Hint>
-                )}
-              </>
+            <Btn type="button" onClick={startShare} disabled={!secure}>
+              공유 시작 (방 만들기)
+            </Btn>
+          </ToolbarRow>
+        )}
+
+        {roomActive && roomId && (
+          <ToolbarRow>
+            <Btn type="button" onClick={copyLink}>
+              {copyDone ? '복사됨' : '링크 복사'}
+            </Btn>
+            <BtnGhost type="button" onClick={stopShare}>
+              나가기
+            </BtnGhost>
+            {(lastSentAt || lastPollAt) && (
+              <Hint style={{ marginTop: 0, width: '100%' }}>
+                {lastSentAt && `전송: ${new Date(lastSentAt).toLocaleTimeString('ko-KR')}`}
+                {lastSentAt && lastPollAt ? ' · ' : ''}
+                {lastPollAt && `동기화: ${new Date(lastPollAt).toLocaleTimeString('ko-KR')}`}
+                {` · 상대 ${othersCount}명`}
+              </Hint>
             )}
           </ToolbarRow>
         )}
-        {isWatcher && lastRemoteAt && (
-          <Hint style={{ marginTop: 8 }}>
-            마지막 갱신: {new Date(lastRemoteAt).toLocaleTimeString('ko-KR')}
-          </Hint>
+
+        {roomActive && (
+          <Legend>
+            <span>⭐ 내 위치</span>
+            <span>📍 빨간 핀: 다른 참가자</span>
+          </Legend>
         )}
       </Toolbar>
       <MapArea>

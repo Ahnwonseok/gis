@@ -8,7 +8,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import project.gis.dto.LocationShareDto;
+import project.gis.dto.LocationShareParticipantsResponse;
+import project.gis.dto.LocationSharePostRequest;
 import project.gis.service.LocationShareService;
 
 @RestController
@@ -21,42 +22,53 @@ public class LocationShareController {
         this.locationShareService = locationShareService;
     }
 
-    @PostMapping("/{sessionId}")
+    @PostMapping("/{roomId}/position")
     public ResponseEntity<Void> updatePosition(
-            @PathVariable String sessionId,
-            @RequestBody LocationShareDto body) {
-        if (!isValidSessionId(sessionId)) {
+            @PathVariable String roomId, @RequestBody LocationSharePostRequest body) {
+        if (!isValidUuid(roomId)) {
             return ResponseEntity.badRequest().build();
         }
         if (body == null
+                || body.getParticipantId() == null
+                || !isValidUuid(body.getParticipantId())
                 || Double.isNaN(body.getLatitude())
                 || Double.isNaN(body.getLongitude())
                 || Math.abs(body.getLatitude()) > 90
                 || Math.abs(body.getLongitude()) > 180) {
             return ResponseEntity.badRequest().build();
         }
-        locationShareService.savePosition(
-                sessionId, body.getLatitude(), body.getLongitude(), body.getAccuracy());
-        return ResponseEntity.ok().build();
+        try {
+            locationShareService.saveParticipantPosition(
+                    roomId,
+                    body.getParticipantId(),
+                    body.getLatitude(),
+                    body.getLongitude(),
+                    body.getAccuracy());
+            return ResponseEntity.ok().build();
+        } catch (IllegalStateException e) {
+            if ("ROOM_FULL".equals(e.getMessage())) {
+                return ResponseEntity.status(409).build();
+            }
+            throw e;
+        }
     }
 
-    @GetMapping("/{sessionId}")
-    public ResponseEntity<LocationShareDto> getPosition(@PathVariable String sessionId) {
-        if (!isValidSessionId(sessionId)) {
+    @GetMapping("/{roomId}/participants")
+    public ResponseEntity<LocationShareParticipantsResponse> listParticipants(@PathVariable String roomId) {
+        if (!isValidUuid(roomId)) {
             return ResponseEntity.badRequest().build();
         }
-        return locationShareService
-                .getPosition(sessionId)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        LocationShareParticipantsResponse res = new LocationShareParticipantsResponse();
+        res.setParticipants(locationShareService.getParticipants(roomId));
+        return ResponseEntity.ok(res);
     }
 
-    private static boolean isValidSessionId(String sessionId) {
-        if (sessionId == null || sessionId.length() > 64) {
+    private static boolean isValidUuid(String value) {
+        if (value == null || value.length() > 64) {
             return false;
         }
         try {
-            UUID.fromString(sessionId);
+            UUID.fromString(value);
             return true;
         } catch (IllegalArgumentException e) {
             return false;
