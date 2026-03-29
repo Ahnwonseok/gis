@@ -47,9 +47,23 @@ public class LocationShareService {
         }
     }
 
+    /** 전송이 오래 없으면 오프라인으로 보고 제거 (탭 닫기 등) */
+    private static final long STALE_MS = 90_000;
+
+    public void removeParticipant(String roomId, String participantId) {
+        String key = roomKey(roomId);
+        stringRedisTemplate.opsForHash().delete(key, participantField(participantId));
+        Long size = stringRedisTemplate.opsForHash().size(key);
+        if (size != null && size == 0) {
+            stringRedisTemplate.delete(key);
+        }
+    }
+
     public Map<String, LocationShareDto> getParticipants(String roomId) {
-        Map<Object, Object> raw = stringRedisTemplate.opsForHash().entries(roomKey(roomId));
+        String key = roomKey(roomId);
+        Map<Object, Object> raw = stringRedisTemplate.opsForHash().entries(key);
         Map<String, LocationShareDto> out = new LinkedHashMap<>();
+        long now = System.currentTimeMillis();
         for (Map.Entry<Object, Object> e : raw.entrySet()) {
             String k = e.getKey().toString();
             if (!k.startsWith(PARTICIPANT_FIELD_PREFIX)) {
@@ -57,10 +71,19 @@ public class LocationShareService {
             }
             String pid = k.substring(PARTICIPANT_FIELD_PREFIX.length());
             try {
-                out.put(pid, objectMapper.readValue(e.getValue().toString(), LocationShareDto.class));
+                LocationShareDto dto = objectMapper.readValue(e.getValue().toString(), LocationShareDto.class);
+                if (dto.getUpdatedAt() == null || now - dto.getUpdatedAt() > STALE_MS) {
+                    stringRedisTemplate.opsForHash().delete(key, k);
+                    continue;
+                }
+                out.put(pid, dto);
             } catch (JsonProcessingException ex) {
-                stringRedisTemplate.opsForHash().delete(roomKey(roomId), k);
+                stringRedisTemplate.opsForHash().delete(key, k);
             }
+        }
+        Long sz = stringRedisTemplate.opsForHash().size(key);
+        if (sz != null && sz == 0) {
+            stringRedisTemplate.delete(key);
         }
         return out;
     }

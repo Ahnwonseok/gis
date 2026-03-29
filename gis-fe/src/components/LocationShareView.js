@@ -144,6 +144,8 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
   const [participantId] = useState(() => getOrCreateParticipantId());
   const [roomId, setRoomId] = useState(null);
   const [roomActive, setRoomActive] = useState(false);
+  const roomIdRef = useRef(roomId);
+  roomIdRef.current = roomId;
 
   const mapRef = useRef(null);
   const markersRef = useRef({});
@@ -163,6 +165,18 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
       setRoomActive(true);
     }
   }, [watchSessionId]);
+
+  /* 메인 등으로 화면 이탈 시에도 서버에서 내 마커 제거 → 상대 지도에서 사라짐 */
+  useEffect(() => {
+    return () => {
+      const rid = roomIdRef.current;
+      if (rid) {
+        api
+          .delete(`/share/${rid}/participants/${encodeURIComponent(participantId)}`)
+          .catch(() => {});
+      }
+    };
+  }, [participantId]);
 
   const applyParticipantsOnMap = useCallback((participants, myPid) => {
     const kakao = window.kakao?.maps;
@@ -342,6 +356,12 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
   };
 
   const stopShare = () => {
+    const rid = roomIdRef.current;
+    if (rid) {
+      api
+        .delete(`/share/${rid}/participants/${encodeURIComponent(participantId)}`)
+        .catch(() => {});
+    }
     setRoomActive(false);
     setRoomId(null);
     lastPosRef.current = null;
