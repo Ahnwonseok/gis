@@ -41,7 +41,7 @@ https://gis-alpha.vercel.app/
 
 ### 1. 근처 정류장 찾기
 - 현재 위치(GPS)로 가까운 정류장을 찾고, 거리·방면 정보를 제공합니다.
-  <img width="500" alt="image" src="https://github.com/user-attachments/assets/307cc5dc-69e8-43ef-bc54-68870739a19a" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/307cc5dc-69e8-43ef-bc54-68870739a19a" />
 <br clear="left"><br>
 
 ### 2. 정류장 버스 선택 
