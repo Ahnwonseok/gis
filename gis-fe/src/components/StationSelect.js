@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import api from '../api/axiosInstance';
+import {
+  isFavoriteStation,
+  toggleFavoriteStation,
+} from '../utils/favoriteStationsStorage';
 
 const Container = styled.div`
   width: 100%;
@@ -84,6 +88,46 @@ const StationInfo = styled.div`
   backdrop-filter: blur(10px);
 `;
 
+const StationInfoTop = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const StationTextBlock = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const FavoriteButton = styled.button`
+  flex-shrink: 0;
+  padding: 10px 14px;
+  font-size: 1rem;
+  font-weight: bold;
+  color: white;
+  background: rgba(255, 215, 0, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(255, 215, 0, 0.4);
+  }
+
+  &:focus {
+    outline: 4px solid #ffd700;
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+`;
+
 const StationName = styled.div`
   font-size: 1.8rem;
   font-weight: bold;
@@ -165,9 +209,16 @@ const StationSelect = ({ station, onBack, onSelect }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [stationDetail, setStationDetail] = useState(null);
-  
+  const [favorited, setFavorited] = useState(() =>
+    isFavoriteStation(station?.stationID),
+  );
+
   const stationName = station?.stationName || station?.name || '정류장명 없음';
   const direction = station?.direction || '';
+
+  useEffect(() => {
+    setFavorited(isFavoriteStation(station?.stationID));
+  }, [station?.stationID]);
 
   // 정류장 상세 정보 조회
   useEffect(() => {
@@ -268,6 +319,25 @@ const StationSelect = ({ station, onBack, onSelect }) => {
     }
   };
 
+  const handleFavoriteClick = () => {
+    const sid = station?.stationID;
+    if (!sid) return;
+    const name =
+      stationDetail?.stationName ||
+      stationDetail?.name ||
+      stationName;
+    const dir =
+      stationDetail?.direction != null && stationDetail?.direction !== ''
+        ? stationDetail.direction
+        : direction;
+    const next = toggleFavoriteStation({
+      stationID: sid,
+      stationName: name,
+      direction: dir,
+    });
+    setFavorited(next);
+  };
+
   return (
     <Container>
       <Header>
@@ -281,10 +351,23 @@ const StationSelect = ({ station, onBack, onSelect }) => {
       </Header>
 
       <StationInfo>
-        <StationName>{stationName}</StationName>
-        {direction && (
-          <StationDirection>→ {direction} 방면</StationDirection>
-        )}
+        <StationInfoTop>
+          <StationTextBlock>
+            <StationName>{stationName}</StationName>
+            {direction && (
+              <StationDirection>→ {direction} 방면</StationDirection>
+            )}
+          </StationTextBlock>
+          <FavoriteButton
+            type="button"
+            onClick={handleFavoriteClick}
+            aria-pressed={favorited}
+            aria-label={favorited ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            disabled={!station?.stationID}
+          >
+            {favorited ? '★ 즐겨찾기' : '☆ 즐겨찾기'}
+          </FavoriteButton>
+        </StationInfoTop>
       </StationInfo>
 
       {loading && (

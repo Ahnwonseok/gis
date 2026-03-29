@@ -7,6 +7,7 @@ import StationSelect from './components/StationSelect';
 import BusSelect from './components/BusSelect';
 import DestinationSearch from './components/DestinationSearch';
 import BusArrivalMonitor from './components/BusArrivalMonitor';
+import MyPage from './components/MyPage';
 
 function newLocationRoomUuid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -31,6 +32,8 @@ function App() {
   const [locationShareWatchId, setLocationShareWatchId] = useState(null);
   /** 메인 → 위치공유로 올 때 미리 만든 방 ID (링크 공유용, Strict Mode에서도 한 번만) */
   const [locationShareMenuRoomId, setLocationShareMenuRoomId] = useState(null);
+  /** 정류장 상세에서 뒤로 갈 때: 근처 목록(stations) 또는 마이페이지(myPage) */
+  const [stationSelectReturnView, setStationSelectReturnView] = useState('stations');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -54,7 +57,7 @@ function App() {
         break;
       }
       case '마이페이지':
-        alert('현재 개발 중입니다.');
+        setCurrentView('myPage');
         break;
       default:
         break;
@@ -73,6 +76,7 @@ function App() {
   const handleBackToMain = () => {
     setCurrentView('main');
     setSelectedStation(null);
+    setStationSelectReturnView('stations');
     clearShareQuery();
   };
 
@@ -82,9 +86,13 @@ function App() {
   };
 
   const handleStationSelect = (station) => {
-    // 같은 stationID이고 이미 상세 정보가 있으면 기존 selectedStation 유지
-    // StationSelect 컴포넌트 내부에서 캐시를 확인하므로 여기서는 그대로 전달
-    // StationSelect가 캐시를 확인하여 API 호출 여부를 결정함
+    setStationSelectReturnView('stations');
+    setSelectedStation(station);
+    setCurrentView('stationSelect');
+  };
+
+  const handleOpenStationFromMyPage = (station) => {
+    setStationSelectReturnView('myPage');
     setSelectedStation(station);
     setCurrentView('stationSelect');
   };
@@ -93,6 +101,14 @@ function App() {
     // 뒤로 갈 때는 selectedStation을 유지하지 않음 (근처 정류장 목록으로 돌아감)
     // 하지만 selectedStation은 유지하여 나중에 다시 선택할 수 있도록 함
     setCurrentView('stations');
+  };
+
+  const handleBackFromStationSelect = () => {
+    if (stationSelectReturnView === 'myPage') {
+      setCurrentView('myPage');
+    } else {
+      handleBackToStations();
+    }
   };
 
   const handleSearchSelect = (searchType, stationWithDetail) => {
@@ -150,10 +166,16 @@ function App() {
           onStationSelect={handleStationSelect}
         />
       )}
+      {currentView === 'myPage' && (
+        <MyPage
+          onBack={handleBackToMain}
+          onOpenStation={handleOpenStationFromMyPage}
+        />
+      )}
       {currentView === 'stationSelect' && selectedStation && (
         <StationSelect
           station={selectedStation}
-          onBack={handleBackToStations}
+          onBack={handleBackFromStationSelect}
           onSelect={handleSearchSelect}
         />
       )}
