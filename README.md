@@ -41,17 +41,17 @@ https://gis-alpha.vercel.app/
 
 ### 1. 근처 정류장 찾기
 - 현재 위치(GPS)로 가까운 정류장을 찾고, 거리·방면 정보를 제공합니다.
-  <img width="600" alt="image" src="https://github.com/user-attachments/assets/307cc5dc-69e8-43ef-bc54-68870739a19a" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/307cc5dc-69e8-43ef-bc54-68870739a19a" />
 <br clear="left"><br>
 
 ### 2. 정류장 버스 선택 
 - 그 정류장에 오는 버스 목록을 보고, 원하는 버스 번호를 선택할 수 있습니다.
-<img width="600" alt="image" src="https://github.com/user-attachments/assets/8d52ade2-dadb-43f5-a8c9-a1f94e565cc9" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/8d52ade2-dadb-43f5-a8c9-a1f94e565cc9" />
 <br clear="left"><br>
 
 ### 3. 버스 도착 알림
 - 선택한 버스가 정류장에 도착하기 전/후로 알림을 받을 수 있습니다.
-<img width="600" alt="image" src="https://github.com/user-attachments/assets/9a825292-fab8-43dc-a537-dd926d75742a" />  
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/9a825292-fab8-43dc-a537-dd926d75742a" />  
 <br clear="left"><br>
 
 ### 4. 도착지 검색
@@ -62,6 +62,23 @@ https://gis-alpha.vercel.app/
 ### 5. OCR 버스 확인
 - 카메라로 버스 번호판을 찍으면, 인식한 번호와 선택한 버스 번호가 같은지 확인해 줍니다(네이버 클로바 OCR 사용)
 <img width="500" alt="image" src="https://github.com/user-attachments/assets/10a122e4-335d-4e33-b4f3-204f3d0da722" />
+<br clear="left"><br>
+
+### 6. 실시간 위치 공유(양방향)
+- **같은 링크(방 ID)로** 들어온 참가자끼리 카카오 지도에서 서로의 위치를 볼 수 있습니다.
+- 메인 메뉴에서 들어가면 **방이 바로 생성**되고, **링크 복사**로 상대를 초대할 수 있습니다.
+- 브라우저 **Geolocation**으로 내 위치를 주기적으로 서버에 반영하고, **폴링**으로 참가자 전원의 최신 좌표를 가져옵니다.
+- 지도에서는 **나(별 마커)와 다른 참가자(빨간 마커)로** 구분하고, **나가기** 시 서버에서 해당 참가자의 핀을 제거합니다.
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/53d3da11-8c35-46c4-bac3-39e4ea4018bc" />
+<br clear="left"><br>
+
+### 7. 마이페이지 · 즐겨찾기 정류장
+- 자주 쓰는 **정류장을 즐겨찾기**에 저장해 두었다가 **마이페이지**에서 목록으로 확인·삭제할 수 있습니다.
+<img width="400" alt="image" src="https://github.com/user-attachments/assets/68c3ead1-db3b-45ce-9b3c-f9366f565afd" />
+<br clear="left"><br>
+- 정류장 상세 화면에서 즐겨찾기 추가 후, 마이페이지에서 해당 정류장을 누르면 **버스/도착지 흐름으로** 바로 이어질 수 있습니다.
+- 로그인 없이 **브라우저 로컬 저장소(localStorage)**에만 보관하므로, 기기·브라우저마다 목록이 독립적입니다.
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/0fd21e0d-116c-4832-ac20-8586590964ce" />
 <br clear="left"><br>
 
 ## 기술적 고민과 선택
@@ -124,3 +141,16 @@ https://gis-alpha.vercel.app/
 
 **선택 및 결과**
 - 검색/오류/결과 상태를 `aria-live`로 전달하고 주요 UI에는 `aria-label`을 적용해 청각도 잘 사용할 수 있게 설계했습니다.
+
+### 6. 실시간 위치 공유 데이터를 어디에 둘지(인메모리 · PostgreSQL · Redis)
+**문제 상황**
+- 위치 공유는 **로그인 없이 링크만으로** 쓰이고, 좌표는 **잠깐 유지**되면 되며 장기 보관이나 복잡한 조회가 필요하지 않습니다.
+
+**고려한 방안**
+- PostgreSQL에 테이블을 두고 주기적으로 정리
+- 애플리케이션 메모리만 사용
+- **Redis**에 방(Hash)·참가자 필드 단위로 저장하고 TTL로 만료
+
+**선택 및 결과**
+- **Redis**에 `share:room:{roomId}` 형태의 Hash로 참가자별 JSON을 두고, 전송 시 **TTL을 갱신**하는 방식을 선택했습니다.
+- 오래 갱신이 없는 참가자는 **읽기 시 제거(stale)** 하고 **나가기 시 필드 삭제(DELETE API)로** 상대 지도에 남는 마커를 줄였습니다.
