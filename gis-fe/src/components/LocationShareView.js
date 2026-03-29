@@ -139,8 +139,10 @@ function getOrCreateParticipantId() {
 
 /**
  * 양방향 실시간 위치: 같은 방(room) 참가자 전원이 위치를 올리고, 서버에서 모두의 좌표를 받아 마커 표시.
+ * - menuRoomId: 메인에서 들어올 때 App이 미리 만든 방(바로 공유 가능)
+ * - watchSessionId: ?share= 로 참가하는 방(우선)
  */
-const LocationShareView = ({ onBack, watchSessionId }) => {
+const LocationShareView = ({ onBack, watchSessionId, menuRoomId, onMenuRoomLeave }) => {
   const [participantId] = useState(() => getOrCreateParticipantId());
   const [roomId, setRoomId] = useState(null);
   const [roomActive, setRoomActive] = useState(false);
@@ -163,8 +165,13 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
     if (watchSessionId) {
       setRoomId(watchSessionId);
       setRoomActive(true);
+      return;
     }
-  }, [watchSessionId]);
+    if (menuRoomId) {
+      setRoomId(menuRoomId);
+      setRoomActive(true);
+    }
+  }, [watchSessionId, menuRoomId]);
 
   /* 메인 등으로 화면 이탈 시에도 서버에서 내 마커 제거 → 상대 지도에서 사라짐 */
   useEffect(() => {
@@ -362,6 +369,7 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
         .delete(`/share/${rid}/participants/${encodeURIComponent(participantId)}`)
         .catch(() => {});
     }
+    onMenuRoomLeave?.();
     setRoomActive(false);
     setRoomId(null);
     lastPosRef.current = null;
@@ -386,16 +394,15 @@ const LocationShareView = ({ onBack, watchSessionId }) => {
   };
 
   const secure = typeof window !== 'undefined' && window.isSecureContext;
-  const joinedByLink = Boolean(watchSessionId);
+  const joinedByLink = Boolean(watchSessionId && !menuRoomId);
 
   return (
     <Wrap>
       <Toolbar>
-        <Title>실시간 위치 공유 (양방향)</Title>
-        <Hint>
-          같은 링크로 들어온 사람 모두 위치가 지도에 표시됩니다. 별 마커는 내 위치, 빨간 마커는 상대입니다.
-          방은 약 30분간 유지됩니다 (마지막 전송 시 갱신).
-        </Hint>
+        <Title>실시간 위치 공유</Title>
+        {roomActive && menuRoomId && !watchSessionId && (
+          <Hint>새 방이 열렸습니다. 아래에서 링크 복사로 상대를 초대할 수 있습니다.</Hint>
+        )}
         {joinedByLink && roomActive && (
           <Hint>링크로 참여 중입니다. 위치 권한을 허용하면 상대와 서로 볼 수 있습니다.</Hint>
         )}

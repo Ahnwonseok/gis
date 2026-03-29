@@ -8,6 +8,17 @@ import BusSelect from './components/BusSelect';
 import DestinationSearch from './components/DestinationSearch';
 import BusArrivalMonitor from './components/BusArrivalMonitor';
 
+function newLocationRoomUuid() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 // 모듈 레벨 캐시: stationID -> 상세 정보 (StationSelect의 캐시와 동일하게 유지)
 // StationSelect.js에서 export하거나, 여기서도 같은 캐시를 참조할 수 있도록
 // 일단 App.js에서도 별도로 관리하되, StationSelect에서 캐시를 사용하도록 함
@@ -18,12 +29,15 @@ function App() {
   const [selectedBus, setSelectedBus] = useState(null); // 선택된 버스 정보
   const [isMonitoring, setIsMonitoring] = useState(false); // 알림 모니터링 상태
   const [locationShareWatchId, setLocationShareWatchId] = useState(null);
+  /** 메인 → 위치공유로 올 때 미리 만든 방 ID (링크 공유용, Strict Mode에서도 한 번만) */
+  const [locationShareMenuRoomId, setLocationShareMenuRoomId] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const share = params.get('share');
     if (share) {
       setLocationShareWatchId(share);
+      setLocationShareMenuRoomId(null);
       setCurrentView('locationShare');
     }
   }, []);
@@ -33,10 +47,12 @@ function App() {
       case '정류장 확인':
         setCurrentView('stations');
         break;
-      case '위치공유':
+      case '위치공유': {
         setLocationShareWatchId(null);
+        setLocationShareMenuRoomId(newLocationRoomUuid());
         setCurrentView('locationShare');
         break;
+      }
       case '마이페이지':
         alert('현재 개발 중입니다.');
         break;
@@ -124,6 +140,8 @@ function App() {
         <LocationShareView
           onBack={handleBackFromLocationShare}
           watchSessionId={locationShareWatchId}
+          menuRoomId={locationShareMenuRoomId}
+          onMenuRoomLeave={() => setLocationShareMenuRoomId(null)}
         />
       )}
       {currentView === 'stations' && (
