@@ -69,13 +69,12 @@ https://gis-alpha.vercel.app/
 - 메인 메뉴에서 들어가면 **방이 바로 생성**되고, **링크 복사**로 상대를 초대할 수 있습니다. `?share=방UUID` 형태의 URL로 참가할 수도 있습니다.
 - 브라우저 **Geolocation**으로 내 위치를 주기적으로 서버에 반영하고, **폴링**으로 참가자 전원의 최신 좌표를 가져옵니다.
 - 지도에서는 **별 마커(나)**와 **빨간 마커(다른 참가자)**로 구분하고, **나가기** 시 서버에서 해당 참가자의 핀을 제거해 상대 화면에서도 사라지게 합니다.
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/bf8f899d-2fa7-4155-8708-3f9dab36d0e5" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/53d3da11-8c35-46c4-bac3-39e4ea4018bc" />
 <br clear="left"><br>
 
 ### 7. 마이페이지 · 즐겨찾기 정류장
 - 자주 쓰는 **정류장을 즐겨찾기**에 저장해 두었다가 **마이페이지**에서 목록으로 확인·삭제할 수 있습니다.
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/68c3ead1-db3b-45ce-9b3c-f9366f565afd" />
-<br clear="left"><br>
+<img width="300" alt="image" src="https://github.com/user-attachments/assets/68c3ead1-db3b-45ce-9b3c-f9366f565afd" />
 - 정류장 상세 화면에서 즐겨찾기 추가 후, 마이페이지에서 해당 정류장을 누르면 **버스/도착지 흐름으로** 바로 이어질 수 있습니다.
 - 로그인 없이 **브라우저 로컬 저장소(localStorage)**에만 보관하므로, 기기·브라우저마다 목록이 독립적입니다.
 <img width="500" alt="image" src="https://github.com/user-attachments/assets/0fd21e0d-116c-4832-ac20-8586590964ce" />
