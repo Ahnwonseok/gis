@@ -41,17 +41,17 @@ https://gis-alpha.vercel.app/
 
 ### 1. 근처 정류장 찾기
 - 현재 위치(GPS)로 가까운 정류장을 찾고, 거리·방면 정보를 제공합니다.
-  <img width="600" alt="image" src="https://github.com/user-attachments/assets/307cc5dc-69e8-43ef-bc54-68870739a19a" />
+  <img width="500" alt="image" src="https://github.com/user-attachments/assets/307cc5dc-69e8-43ef-bc54-68870739a19a" />
 <br clear="left"><br>
 
 ### 2. 정류장 버스 선택 
 - 그 정류장에 오는 버스 목록을 보고, 원하는 버스 번호를 선택할 수 있습니다.
-<img width="600" alt="image" src="https://github.com/user-attachments/assets/8d52ade2-dadb-43f5-a8c9-a1f94e565cc9" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/8d52ade2-dadb-43f5-a8c9-a1f94e565cc9" />
 <br clear="left"><br>
 
 ### 3. 버스 도착 알림
 - 선택한 버스가 정류장에 도착하기 전/후로 알림을 받을 수 있습니다.
-<img width="600" alt="image" src="https://github.com/user-attachments/assets/9a825292-fab8-43dc-a537-dd926d75742a" />  
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/9a825292-fab8-43dc-a537-dd926d75742a" />  
 <br clear="left"><br>
 
 ### 4. 도착지 검색
@@ -69,12 +69,12 @@ https://gis-alpha.vercel.app/
 - 메인 메뉴에서 들어가면 **방이 바로 생성**되고, **링크 복사**로 상대를 초대할 수 있습니다. `?share=방UUID` 형태의 URL로 참가할 수도 있습니다.
 - 브라우저 **Geolocation**으로 내 위치를 주기적으로 서버에 반영하고, **폴링**으로 참가자 전원의 최신 좌표를 가져옵니다.
 - 지도에서는 **별 마커(나)**와 **빨간 마커(다른 참가자)**로 구분하고, **나가기** 시 서버에서 해당 참가자의 핀을 제거해 상대 화면에서도 사라지게 합니다.
-<img width="600" alt="image" src="https://github.com/user-attachments/assets/bf8f899d-2fa7-4155-8708-3f9dab36d0e5" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/bf8f899d-2fa7-4155-8708-3f9dab36d0e5" />
 <br clear="left"><br>
 
 ### 7. 마이페이지 · 즐겨찾기 정류장
 - 자주 쓰는 **정류장을 즐겨찾기**에 저장해 두었다가 **마이페이지**에서 목록으로 확인·삭제할 수 있습니다.
-<img width="600" alt="image" src="https://github.com/user-attachments/assets/68c3ead1-db3b-45ce-9b3c-f9366f565afd" />
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/68c3ead1-db3b-45ce-9b3c-f9366f565afd" />
 <br clear="left"><br>
 - 정류장 상세 화면에서 즐겨찾기 추가 후, 마이페이지에서 해당 정류장을 누르면 **버스/도착지 흐름으로** 바로 이어질 수 있습니다.
 - 로그인 없이 **브라우저 로컬 저장소(localStorage)**에만 보관하므로, 기기·브라우저마다 목록이 독립적입니다.
